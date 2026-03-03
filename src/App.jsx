@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
+import universusLogo from "./universus-logo.png";
 
 function App() {
   const START_LIFE = 25;
@@ -7,121 +8,77 @@ function App() {
 
   const [player1Life, setPlayer1Life] = useState(START_LIFE);
   const [player2Life, setPlayer2Life] = useState(START_LIFE);
-
   const [attackingPlayer, setAttackingPlayer] = useState(null);
   const [attackSpeed, setAttackSpeed] = useState(DEFAULT_STAT);
   const [attackDamage, setAttackDamage] = useState(DEFAULT_STAT);
   const [attackZone, setAttackZone] = useState("high");
-
   const [gameOver, setGameOver] = useState(null);
-  const [screenStack, setScreenStack] = useState(["main"]);
+  const [showLoading, setShowLoading] = useState(true);
 
-  const pushScreen = (screen) => setScreenStack((prev) => [...prev, screen]);
-  const popScreen = () => setScreenStack((prev) => prev.slice(0, -1));
-
-  const closePanel = useCallback(() => {
-    setAttackingPlayer(null);
-    popScreen();
-    window.history.back();
-  }, []);
-
-  // iOS swipe-to-go-back support
   useEffect(() => {
-    let touchStartX = 0;
-    let touchEndX = 0;
-
-    const handleTouchStart = (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-    };
-
-    const handleTouchEnd = (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      if (touchStartX < 50 && touchEndX - touchStartX > 50) {
-        // Right swipe from left edge
-        if (attackingPlayer) closePanel();
-      }
-    };
-
-    window.addEventListener("touchstart", handleTouchStart);
-    window.addEventListener("touchend", handleTouchEnd);
-
-    return () => {
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [attackingPlayer, closePanel]);
-
-  const updatePlayer1Life = useCallback((delta) => {
-    setPlayer1Life((prev) => {
-      const newLife = prev + delta;
-      if (newLife <= 0) {
-        setGameOver(2);
-        pushScreen("gameover");
-        return 0;
-      }
-      return newLife;
-    });
+    const timer = setTimeout(() => setShowLoading(false), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
-  const updatePlayer2Life = useCallback((delta) => {
-    setPlayer2Life((prev) => {
-      const newLife = prev + delta;
-      if (newLife <= 0) {
-        setGameOver(1);
-        pushScreen("gameover");
-        return 0;
-      }
-      return newLife;
-    });
-  }, []);
+  const closePanel = () => setAttackingPlayer(null);
 
-  const applyAttack = useCallback(
-    (type) => {
-      let damage = attackDamage;
+  const updatePlayerLife = (playerNum, delta) => {
+    if (playerNum === 1) {
+      setPlayer1Life(prev => {
+        const newLife = prev + delta;
+        if (newLife <= 0) setGameOver(2);
+        return Math.max(0, newLife);
+      });
+    } else {
+      setPlayer2Life(prev => {
+        const newLife = prev + delta;
+        if (newLife <= 0) setGameOver(1);
+        return Math.max(0, newLife);
+      });
+    }
+  };
 
-      if (type === "half") damage = Math.ceil(attackDamage / 2);
-      if (type === "full") damage = 0;
+  const applyAttack = useCallback((type) => {
+    let damage = 0;
 
-      if (attackZone === "high") damage += 1;
-      if (attackZone === "low") damage = Math.max(0, damage - 1);
+    if (type === "half") damage = Math.ceil(attackDamage / 2);
+    if (type === "unblocked") damage = attackDamage;
 
-      if (attackingPlayer === 1) updatePlayer1Life(-damage);
-      else updatePlayer2Life(-damage);
+    if (attackingPlayer === 1) {
+      updatePlayerLife(1, -damage);
+    } else {
+      updatePlayerLife(2, -damage);
+    }
 
-      setAttackSpeed(DEFAULT_STAT);
-      setAttackDamage(DEFAULT_STAT);
-      closePanel();
-    },
-    [attackingPlayer, attackDamage, attackZone, closePanel]
-  );
+    setAttackSpeed(DEFAULT_STAT);
+    setAttackDamage(DEFAULT_STAT);
+    closePanel();
+  }, [attackingPlayer, attackDamage]);
 
-  const renderPlayer = useCallback(
-    (playerNum) => {
-      const life = playerNum === 1 ? player1Life : player2Life;
+  const renderPlayer = (playerNum) => {
+    const life = playerNum === 1 ? player1Life : player2Life;
 
-      const playerClass =
-        !attackingPlayer && playerNum === 2 ? "player-2-main" : attackingPlayer && attackingPlayer !== playerNum ? "player-rotate" : "";
+    // Always mirror Player 2
+    const playerClass = playerNum === 2 ? "player-rotate" : "";
 
-      const changeLife = (delta) => {
-        if (playerNum === 1) updatePlayer1Life(delta);
-        else updatePlayer2Life(delta);
-      };
+    return (
+      <div className={`player ${playerClass}`}>
+        <div className="player-name">Player {playerNum}</div>
 
-      return (
-        <div className={`player ${playerClass}`}>
-          <div className="player-name">Player {playerNum}</div>
-          <div className="life-total" onClick={() => { setAttackingPlayer(playerNum); pushScreen("attack"); }}>
-            {life}
-          </div>
-          <div className="controls" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => changeLife(-1)}>-</button>
-            <button onClick={() => changeLife(1)}>+</button>
-          </div>
+        <div
+          className="life-total"
+          onClick={() => setAttackingPlayer(playerNum)}
+        >
+          {life}
         </div>
-      );
-    },
-    [player1Life, player2Life, attackingPlayer]
-  );
+
+        <div className="controls">
+          <button onClick={() => updatePlayerLife(playerNum, -1)}>-</button>
+          <button onClick={() => updatePlayerLife(playerNum, 1)}>+</button>
+        </div>
+      </div>
+    );
+  };
 
   const resetGame = () => {
     setPlayer1Life(START_LIFE);
@@ -130,19 +87,33 @@ function App() {
     setAttackDamage(DEFAULT_STAT);
     setAttackZone("high");
     setGameOver(null);
-    setScreenStack(["main"]);
+    setAttackingPlayer(null);
   };
 
+  if (showLoading) {
+    return (
+      <div className="loading-screen">
+        <img src={universusLogo} alt="Universus Logo" className="loading-logo" />
+      </div>
+    );
+  }
+
+  const panelClass =
+    attackingPlayer === 1
+      ? "attack-face-down"
+      : attackingPlayer === 2
+      ? "attack-face-up"
+      : "";
+
   return (
-    <div className={`container ${!attackingPlayer ? "main-screen" : ""}`}>
+    <div className="container main-screen">
       {renderPlayer(2)}
       {renderPlayer(1)}
 
-      {/* Attack Panel */}
       {attackingPlayer && !gameOver && (
         <div className="modal-backdrop" onClick={closePanel}>
           <div
-            className={`attack-panel ${attackingPlayer === 1 ? "attack-face-up" : "attack-face-down"}`}
+            className={`attack-panel ${panelClass}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="attack-life-bar">
@@ -150,16 +121,17 @@ function App() {
                 <div className="attack-player-name">Player 1</div>
                 <div className="attack-player-life">{player1Life}</div>
                 <div className="controls">
-                  <button onClick={() => updatePlayer1Life(-1)}>-</button>
-                  <button onClick={() => updatePlayer1Life(1)}>+</button>
+                  <button onClick={() => updatePlayerLife(1, -1)}>-</button>
+                  <button onClick={() => updatePlayerLife(1, 1)}>+</button>
                 </div>
               </div>
+
               <div className="attack-life">
                 <div className="attack-player-name">Player 2</div>
                 <div className="attack-player-life">{player2Life}</div>
                 <div className="controls">
-                  <button onClick={() => updatePlayer2Life(-1)}>-</button>
-                  <button onClick={() => updatePlayer2Life(1)}>+</button>
+                  <button onClick={() => updatePlayerLife(2, -1)}>-</button>
+                  <button onClick={() => updatePlayerLife(2, 1)}>+</button>
                 </div>
               </div>
             </div>
@@ -168,8 +140,8 @@ function App() {
               <div className="stat-label">Speed</div>
               <div className="stat-value">{attackSpeed}</div>
               <div className="stat-controls">
-                <button onClick={() => setAttackSpeed((v) => Math.max(0, v - 1))}>-</button>
-                <button onClick={() => setAttackSpeed((v) => v + 1)}>+</button>
+                <button onClick={() => setAttackSpeed(v => Math.max(0, v - 1))}>-</button>
+                <button onClick={() => setAttackSpeed(v => v + 1)}>+</button>
               </div>
             </div>
 
@@ -177,12 +149,11 @@ function App() {
               <div className="stat-label">Damage</div>
               <div className="stat-value">{attackDamage}</div>
               <div className="stat-controls">
-                <button onClick={() => setAttackDamage((v) => Math.max(0, v - 1))}>-</button>
-                <button onClick={() => setAttackDamage((v) => v + 1)}>+</button>
+                <button onClick={() => setAttackDamage(v => Math.max(0, v - 1))}>-</button>
+                <button onClick={() => setAttackDamage(v => v + 1)}>+</button>
               </div>
             </div>
 
-            {/* Zone Buttons */}
             <div className="zone-buttons">
               <button
                 data-zone="high"
@@ -216,13 +187,14 @@ function App() {
         </div>
       )}
 
-      {/* Game Over */}
       {gameOver && (
         <div className="modal-backdrop">
           <div className="attack-panel">
             <h1>Game Over</h1>
             <h2>Player {gameOver} Wins!</h2>
-            <button className="reset-button" onClick={resetGame}>New Game</button>
+            <button className="reset-button" onClick={resetGame}>
+              New Game
+            </button>
           </div>
         </div>
       )}
