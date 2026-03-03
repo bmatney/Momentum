@@ -1,256 +1,109 @@
-/* Reset and basic */
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
-  margin: 0;
-  background: #0b1c2d;
-  color: #f4f4f4;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 0; background: #0b1c2d; color: #f4f4f4;
+  font-family: system-ui, sans-serif; height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; touch-action: manipulation;
 }
 
-button {
-  border: none;
-  cursor: pointer;
-  transition: transform 0.1s ease, background-color 0.2s ease;
-}
-button:active {
-  transform: scale(0.95);
-}
+.container { width: 100%; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.game-area { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 40px; width: 100%; }
+.center-divider { height: 1px; width: 50%; background: rgba(255, 255, 255, 0.1); }
 
-/* Main container */
-.container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100vh;
-  gap: clamp(40px, 8vh, 80px);
-  padding: 20px;
-}
+.player { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.player-rotate { transform: rotate(180deg); }
+.player-name { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; margin-bottom: 5px; }
 
-/* Player styling */
-.player {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.player-name {
-  font-size: 18px;
-  opacity: 0.8;
-  margin-bottom: 4px;
-}
-
-.life-total {
-  font-size: clamp(40px, 8vh, 70px);
-  font-weight: bold;
-  cursor: pointer;
-  margin: 8px 0;
-}
-
-/* Main screen scaling */
-.main-screen .player .player-name,
-.main-screen .player .life-total,
-.main-screen .player .controls {
-  transform: scale(1.2);
-}
-
-/* Player rotation (mirrors Player 2) */
-.player-rotate {
-  transform: rotate(180deg);
-}
-.player-rotate .player-name,
-.player-rotate .life-total,
-.player-rotate .controls {
-  transform: rotate(180deg);
-}
-
-/* Life controls */
 .controls {
   display: flex;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 10px;
 }
 
+.life-total { font-size: clamp(80px, 15vh, 130px); font-weight: 900; line-height: 1; }
+
+/* Changed from circle/oval to slightly rounded squares */
 .controls button {
-  background-color: #c45a1a;
-  color: white;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 20px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
+  background-color: #c45a1a; 
+  color: white; 
+  border: none; 
+  border-radius: 12px; /* Slightly rounded corners */
+  width: 60px; 
+  height: 60px; 
+  font-size: 32px;
+  display: flex; 
+  align-items: center; 
   justify-content: center;
-}
-.controls button:hover {
-  background-color: #e05a20;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
 }
 
-/* Modal / Attack Panel */
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
-  height: 100dvh;
-  background: rgba(11, 28, 45, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 100;
-  overflow-y: auto;
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 
-/* Attack panel */
 .attack-panel {
-  background: #122b44;
-  padding: 16px;
-  border-radius: 14px;
-  width: min(90vw, 500px);
-  max-height: 85vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  text-align: center;
-  gap: 8px;
-
-  opacity: 0;
-  scale: 0.95;
-  animation: panelIn 0.15s forwards;
+  background: #122b44; padding: 24px; border-radius: 24px;
+  width: min(95vw, 450px); display: flex; flex-direction: column; gap: 24px;
 }
 
-@keyframes panelIn {
-  to {
-    opacity: 1;
-    scale: 1;
-  }
+.attack-face-down { transform: rotate(180deg); }
+
+.panel-life-display { display: flex; justify-content: space-around; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.mini-life { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mini-life-val { font-size: 32px; font-weight: 900; line-height: 1; margin-bottom: 5px; }
+.mini-controls { display: flex; flex-direction: row; align-items: center; gap: 15px; }
+
+/* Unified the rounded square look here too */
+.mini-life button { 
+  background: #34495e; 
+  color: white; 
+  width: 40px; 
+  height: 40px; 
+  border-radius: 8px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-size: 20px; 
+  border: none; 
 }
 
-/* Rotation classes for attack panel */
-.attack-face-up {
-  transform: rotate(0deg);
-}
+.mini-label { font-size: 11px; opacity: 0.5; font-weight: bold; }
 
-.attack-face-down {
-  transform: rotate(180deg);
-}
-
-/* Attack life bar */
-.attack-life-bar {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.attack-life {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.attack-player-name {
-  font-size: 16px;
-  opacity: 0.7;
-  margin: 0;
-}
-.attack-player-life {
-  font-size: clamp(28px, 4vh, 42px);
-  font-weight: bold;
-  margin: 0;
-}
-
-/* Stats */
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.stat-label {
-  font-size: clamp(20px, 3vh, 32px);
-  font-weight: 600;
-}
-
-.stat-value {
-  font-size: clamp(48px, 7vh, 80px);
-  font-weight: bold;
-}
-
-.stat-controls {
-  display: flex;
-  gap: 12px;
-}
+.stat-group { display: flex; justify-content: space-around; align-items: center; }
+.stat { display: flex; flex-direction: column; align-items: center; }
+.stat-label { font-size: 14px; text-transform: uppercase; opacity: 0.6; margin-bottom: 4px; }
+.stat-value { font-size: 58px; font-weight: 900; line-height: 1; margin-bottom: 10px; }
+.stat-controls { display: flex; flex-direction: row; align-items: center; gap: 10px; }
 
 .stat-controls button {
-  font-size: 28px;
-  padding: 18px 26px;
-  border-radius: 12px;
-  min-width: 70px;
-  background-color: #c45a1a;
-  color: white;
+  background: #c45a1a; 
+  color: white; 
+  width: 44px; 
+  height: 44px;
+  border-radius: 10px; 
+  font-size: 24px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  border: none;
 }
 
-/* Zone buttons */
-.zone-buttons {
-  display: flex;
-  justify-content: space-evenly;
-  width: 100%;
-  margin: 6px 0;
+.zone-buttons, .block-buttons { display: flex; gap: 10px; }
+.zone-buttons button, .block-buttons button {
+  flex: 1; padding: 16px 0; border-radius: 12px; font-weight: bold; border: none;
+  display: flex; align-items: center; justify-content: center;
 }
-.zone-buttons button {
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: 600;
-  color: black;
-  transition: transform 0.1s ease, background-color 0.2s ease;
-}
-.zone-buttons button[data-zone="high"] { background-color: #ff4c4c; }
-.zone-buttons button[data-zone="mid"] { background-color: #ffa500; }
-.zone-buttons button[data-zone="low"] { background-color: #ffec4c; }
+.zone-buttons button { opacity: 0.5; color: white; }
+.zone-buttons button.selected-zone { opacity: 1; box-shadow: 0 0 0 3px white; }
+.zone-buttons button[data-zone="high"] { background: #ff4c4c; }
+.zone-buttons button[data-zone="mid"] { background: #ffa500; }
+.zone-buttons button[data-zone="low"] { background: #ffec4c; color: #000; }
+.block-buttons button { background: #c45a1a; color: white; box-shadow: 0 4px 0px #9e4612; }
 
-/* Highlight selected attack zone */
-.selected-zone {
-  box-shadow: 0 0 0 3px white inset;
-}
-
-/* Block buttons */
-.block-buttons {
-  display: flex;
-  justify-content: space-evenly;
-  width: 100%;
-  margin: 6px 0;
-}
-.block-buttons button {
-  background-color: #c45a1a;
-  color: white;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-/* Loading screen */
-.loading-screen {
-  position: fixed;
-  inset: 0;
-  background: #0b1c2d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.loading-logo {
-  width: 100%;
-  max-width: 400px;
-  height: auto;
-  object-fit: contain;
-}
+.game-over-panel { text-align: center; }
+.reset-button { background: #c45a1a; color: white; padding: 15px 30px; border-radius: 12px; font-size: 20px; font-weight: bold; border: none; margin-top: 20px; }
