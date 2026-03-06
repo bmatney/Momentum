@@ -7,12 +7,15 @@ function App() {
 
   const [player1Life, setPlayer1Life] = useState(START_LIFE);
   const [player2Life, setPlayer2Life] = useState(START_LIFE);
-  const [targetPlayer, setTargetPlayer] = useState(null); 
+  const [targetPlayer, setTargetPlayer] = useState(null);
 
   const [attackSpeed, setAttackSpeed] = useState(DEFAULT_STAT);
   const [attackDamage, setAttackDamage] = useState(DEFAULT_STAT);
   const [attackZone, setAttackZone] = useState("high");
   const [gameOver, setGameOver] = useState(null);
+
+  // State for tracking who goes first
+  const [firstPlayer, setFirstPlayer] = useState(null);
 
   // Swipe Gesture Refs
   const touchStartX = useRef(null);
@@ -42,9 +45,9 @@ function App() {
     });
   };
 
-const applyAttack = (type) => {
+  const applyAttack = (type) => {
     if (targetPlayer === null) return;
-    
+
     let damage = 0;
     if (type === "half") damage = Math.ceil(attackDamage / 2);
     else if (type === "unblocked") damage = attackDamage;
@@ -67,35 +70,52 @@ const applyAttack = (type) => {
 
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null || touchStartY.current === null) return;
-    
+
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
-    
+
     const distanceX = touchStartX.current - touchEndX;
     const distanceY = touchStartY.current - touchEndY;
-    
+
     // Check if swipe is mostly horizontal and exceeds 50px threshold
     if (Math.abs(distanceX) > 50 && Math.abs(distanceX) > Math.abs(distanceY)) {
       closePanel();
     }
-    
+
     touchStartX.current = null;
     touchStartY.current = null;
   };
 
-  const panelClass = targetPlayer === 1 ? "attack-face-down" : "attack-face-up";
-
+  // FLIPPED: The panel now faces the attacking player!
+    const panelClass = targetPlayer === 1 ? "attack-face-down" : "attack-face-up";
   return (
     <div className="container main-screen">
       <div className="game-area">
-        <PlayerSection num={2} life={player2Life} onUpdate={updatePlayerLife} onOpen={() => setTargetPlayer(2)} rotated />
-        <div className="center-divider"></div>
-        <PlayerSection num={1} life={player1Life} onUpdate={updatePlayerLife} onOpen={() => setTargetPlayer(1)} />
-      </div>
+        <PlayerSection
+          num={2}
+          life={player2Life}
+          onUpdate={updatePlayerLife}
+          onOpen={() => setTargetPlayer(2)}
+          rotated={true}
+          isFirst={firstPlayer === 2}
+        />
 
+        <div className="center-divider"></div>
+
+        <PlayerSection
+          num={1}
+          life={player1Life}
+          onUpdate={updatePlayerLife}
+          onOpen={() => setTargetPlayer(1)}
+          rotated={false}
+          isFirst={firstPlayer === 1}
+        />
+      </div> {/* Correctly closed game-area! */}
+
+      {/* Attack Panel Modal */}
       {targetPlayer && !gameOver && (
-        <div 
-          className="modal-backdrop" 
+        <div
+          className="modal-backdrop"
           onClick={closePanel}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
@@ -128,6 +148,20 @@ const applyAttack = (type) => {
         </div>
       )}
 
+      {/* First Player Selection Popup */}
+      {!firstPlayer && !gameOver && (
+        <div className="modal-backdrop">
+          <div className="attack-panel game-over-panel">
+            <h2 style={{ margin: "0 0 20px 0" }}>Who goes first?</h2>
+            <div className="block-buttons">
+              <button onClick={() => setFirstPlayer(2)}>Player 2</button>
+              <button onClick={() => setFirstPlayer(1)}>Player 1</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game Over Modal */}
       {gameOver && (
         <div className="modal-backdrop">
           <div className="attack-panel game-over-panel">
@@ -140,9 +174,11 @@ const applyAttack = (type) => {
   );
 }
 
-const PlayerSection = ({ num, life, onUpdate, onOpen, rotated }) => (
-  <div className={`player ${rotated ? "player-rotate" : ""}`} onClick={onOpen}>
-    <div className="player-name">Player {num}</div>
+const PlayerSection = ({ num, life, onUpdate, onOpen, rotated, isFirst }) => (
+  <div className={`player ${rotated ? "player-rotate" : ""} ${isFirst ? "first-player-highlight" : ""}`} onClick={onOpen}>
+    <div className={`player-name ${isFirst ? "first-name-active" : ""}`}>
+      Player {num} {isFirst && <span className="first-tag">1ST</span>}
+    </div>
     <div className="life-total">{life}</div>
     <div className="controls">
       <button onClick={(e) => { e.stopPropagation(); onUpdate(num, -1); }}>-</button>
@@ -167,7 +203,7 @@ const StatControl = ({ label, val, set }) => (
     <div className="stat-label">{label}</div>
     <div className="stat-value">{val}</div>
     <div className="stat-controls">
-      {/* Removed Math.max(0, ...) so stats can go negative! */}
+      {/* Allows negative stats */}
       <button onClick={() => set(v => v - 1)}>-</button>
       <button onClick={() => set(v => v + 1)}>+</button>
     </div>

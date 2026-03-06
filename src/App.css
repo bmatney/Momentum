@@ -59,12 +59,16 @@ button:active {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin: 8px;
+  padding: 10px; /* Gives the highlight aura some breathing room */
+  transition: background 0.3s ease;
 }
 
 .player-name {
   font-size: 18px;
   opacity: 0.8;
   margin: 0;
+  transition: all 0.3s ease;
 }
 
 .life-total {
@@ -73,6 +77,27 @@ button:active {
   cursor: pointer;
   margin: 48px;
   line-height: 1;
+}
+
+/* First Player Highlight Styles */
+.first-player-highlight {
+  /* Creates a very subtle orange glowing background behind the first player */
+  background: radial-gradient(ellipse at center, rgba(196, 90, 26, 0.15) 0%, transparent 70%);
+  border-radius: 20px;
+}
+
+.first-name-active {
+  color: #c45a1a;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(196, 90, 26, 0.5);
+  opacity: 1;
+}
+
+.first-tag {
+  font-size: 12px;
+  opacity: 0.8;
+  vertical-align: middle;
+  margin-left: 4px;
 }
 
 /* Main screen scaling */
@@ -90,7 +115,7 @@ button:active {
 /* Life controls */
 .controls {
   display: flex;
-  flex-direction: row; 
+  flex-direction: row;
   gap: 15px;
 }
 
@@ -150,11 +175,11 @@ button:active {
 }
 
 /* Attack panel rotation classes with dedicated animations */
-.attack-face-up { 
-  animation: panelInUp 0.15s forwards; 
+.attack-face-up {
+  animation: panelInUp 0.15s forwards;
 }
-.attack-face-down { 
-  animation: panelInDown 0.15s forwards; 
+.attack-face-down {
+  animation: panelInDown 0.15s forwards;
 }
 
 /* Horizontal Life in Panel - Keeps them side-by-side */
@@ -230,8 +255,8 @@ button:active {
 }
 
 .stat-value {
-  /* Increased from clamp(40px, 6vh, 56px) */
-  font-size: clamp(60px, 10vh, 80px); 
+  /* Increased stat numbers */
+  font-size: clamp(60px, 10vh, 80px);
   font-weight: bold;
   line-height: 1;
   margin: 4px 0;
@@ -300,10 +325,14 @@ button:active {
   font-size: 15px;
 }
 
-/* Game Over Panel */
+/* Game Over Panel & Startup Panel */
 .game-over-panel {
   text-align: center;
-animation: panelInUp 0.15s forwards; /* Add this so it fades in and becomes visible! */
+  animation: panelInUp 0.15s forwards;
+}
+
+.game-over-panel h2 {
+  color: #f4f4f4;
 }
 
 .reset-button {
