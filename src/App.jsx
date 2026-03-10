@@ -14,7 +14,17 @@ function App() {
   const [attackDamage, setAttackDamage] = useState(DEFAULT_STAT);
   const [attackZone, setAttackZone] = useState("high");
   const [gameOver, setGameOver] = useState(null);
+  // Map your specific attack zones to whatever colors you want
+  // Map your specific attack zones to exact state strings
+    const zoneColors = {
+      "high": "#ED1C24",   // Red
+      "mid": "#F7941D",    // orange
+      "low": "#FFDE00",    // yellow
+      "default": "#2c3e50" // Your standard panel background color
+    };
 
+    // Use your actual state variable (attackZone)
+    const currentPanelColor = attackZone ? zoneColors[attackZone] : zoneColors["default"];
   // State for tracking who goes first
   const [firstPlayer, setFirstPlayer] = useState(null);
   const [isRolling, setIsRolling] = useState(false);
@@ -156,8 +166,12 @@ function App() {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <div className={`attack-panel ${panelClass}`} onClick={(e) => e.stopPropagation()}>
-            <div className="panel-life-display">
+          <div
+            className={`attack-panel ${panelClass}`}
+            style={{ backgroundColor: currentPanelColor }}
+            onClick={(e) => e.stopPropagation()}
+          >
+          <div className="panel-life-display">
                             {/* P2 gets inverted if P2 is the target */}
                             <MiniLife
                               label="P2"

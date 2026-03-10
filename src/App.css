@@ -3,6 +3,14 @@
   box-sizing: border-box;
 }
 
+/* Draws the outline on the OUTSIDE of the text */
+* {
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000;
+}
 body {
   margin: 0;
   background: #0b1c2d;
@@ -163,6 +171,7 @@ button:active {
   gap: 16px;
   opacity: 0; /* Starts hidden for the animation */
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  transition: background-color 0.3s ease-in-out;
 }
 
 @keyframes panelInUp {
@@ -296,18 +305,25 @@ button:active {
   font-weight: 600;
   color: black;
   opacity: 0.6;
+  transition: all 0.2s ease-in-out;
+  border: 2px solid transparent;
 }
 
 .zone-buttons button[data-zone="high"] { background-color: #ff4c4c; color: white;}
-.zone-buttons button[data-zone="mid"] { background-color: #ffa500; }
-.zone-buttons button[data-zone="low"] { background-color: #ffec4c; }
+.zone-buttons button[data-zone="mid"] { background-color: #ffa500; color: white;}
+.zone-buttons button[data-zone="low"] { background-color: #ffec4c; color: white;}
 
 /* Highlight selected attack zone */
 .zone-buttons button.selected-zone {
   opacity: 1;
   box-shadow: 0 0 0 3px white inset;
 }
-
+.selected-zone {
+  border: 2px solid #FFD700; /* A crisp gold border */
+  box-shadow: 0 0 12px #FFD700, inset 0 0 4px #FFD700; /* Outer and inner gold glow */
+  transform: scale(1.05); /* Makes the active button pop out slightly */
+  filter: brightness(1.2); /* Brightens the button up */
+}
 /* Block buttons */
 .block-buttons {
   display: flex;
@@ -395,4 +411,15 @@ button:active {
   color: #f4f4f4;
   margin: 0;
   animation: panelInUp 0.3s ease;
+}
+/* Adds a bold black border to block buttons and life total buttons */
+.block-buttons button,
+.controls button,
+.mini-controls button,
+.stat-controls button,
+.roll-button {
+  border: 2px solid black;
+
+  /* Optional: Adds a hard black drop-shadow to make the buttons look 3D */
+  box-shadow: 2px 2px 0px black;
 }
