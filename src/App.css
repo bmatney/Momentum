@@ -1,16 +1,16 @@
-/* Reset and basic */
+/* =========================================
+   1. BASE & RESETS
+   ========================================= */
 * {
   box-sizing: border-box;
-}
-
-/* Draws the outline on the OUTSIDE of the text */
-* {
+  /* Draws the outline on the OUTSIDE of the text */
   text-shadow:
     -1px -1px 0 #000,
      1px -1px 0 #000,
     -1px  1px 0 #000,
      1px  1px 0 #000;
 }
+
 body {
   margin: 0;
   background: #0b1c2d;
@@ -23,6 +23,9 @@ body {
   overflow: hidden;
 }
 
+/* =========================================
+   2. SHARED BUTTON STYLES
+   ========================================= */
 button {
   border: none;
   cursor: pointer;
@@ -33,7 +36,24 @@ button:active {
   transform: scale(0.95);
 }
 
-/* Main container and Game Area */
+/* Base style for all action buttons (Controls, Block, Stats, Roll) */
+.controls button,
+.mini-controls button,
+.stat-controls button,
+.block-buttons button,
+.roll-button {
+  border: 2px solid black;
+  box-shadow: 2px 2px 0px black; /* 3D drop-shadow */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+}
+
+/* =========================================
+   3. MAIN LAYOUT & GAME AREA
+   ========================================= */
 .container {
   display: flex;
   flex-direction: column;
@@ -44,7 +64,6 @@ button:active {
   padding: 20px;
 }
 
-/* Restores the gap in the middle of the screen */
 .game-area {
   display: flex;
   flex-direction: column;
@@ -54,22 +73,27 @@ button:active {
   width: 100%;
 }
 
-/* Restores the visual line in the middle */
 .center-divider {
   height: 1px;
   width: 60%;
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Player styling */
+/* =========================================
+   4. PLAYER UI
+   ========================================= */
 .player {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 8px;
-  padding: 10px; /* Gives the highlight aura some breathing room */
+  padding: 10px;
   transition: background 0.3s ease;
+}
+
+.player-rotate {
+  transform: rotate(180deg);
 }
 
 .player-name {
@@ -87,9 +111,33 @@ button:active {
   line-height: 1;
 }
 
-/* First Player Highlight Styles */
+.controls {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+}
+
+.controls button {
+  background-color: #c45a1a;
+  border-radius: 12px;
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+}
+
+.controls button:hover {
+  background-color: #e05a20;
+}
+
+/* Main screen scaling */
+.main-screen .player .player-name,
+.main-screen .player .life-total,
+.main-screen .player .controls {
+  transform: scale(1.5);
+}
+
+/* First Player Highlights */
 .first-player-highlight {
-  /* Creates a very subtle orange glowing background behind the first player */
   background: radial-gradient(ellipse at center, rgba(196, 90, 26, 0.15) 0%, transparent 70%);
   border-radius: 20px;
 }
@@ -108,43 +156,9 @@ button:active {
   margin-left: 4px;
 }
 
-/* Main screen scaling */
-.main-screen .player .player-name,
-.main-screen .player .life-total,
-.main-screen .player .controls {
-  transform: scale(1.5);
-}
-
-/* Player rotation for Player 2 */
-.player-rotate {
-  transform: rotate(180deg);
-}
-
-/* Life controls */
-.controls {
-  display: flex;
-  flex-direction: row;
-  gap: 15px;
-}
-
-.controls button {
-  background-color: #c45a1a;
-  color: white;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 24px;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.controls button:hover {
-  background-color: #e05a20;
-}
-
-/* Modal / Attack Panel */
+/* =========================================
+   5. MODALS & PANELS
+   ========================================= */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -157,7 +171,6 @@ button:active {
   z-index: 100;
 }
 
-/* Attack panel */
 .attack-panel {
   background: #122b44;
   padding: 20px;
@@ -169,11 +182,12 @@ button:active {
   flex-direction: column;
   text-align: center;
   gap: 16px;
-  opacity: 0; /* Starts hidden for the animation */
+  opacity: 0;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   transition: background-color 0.3s ease-in-out;
 }
 
+/* Animations */
 @keyframes panelInUp {
   from { opacity: 0; transform: scale(0.95) rotate(0deg); }
   to { opacity: 1; transform: scale(1) rotate(0deg); }
@@ -183,15 +197,13 @@ button:active {
   to { opacity: 1; transform: scale(1) rotate(180deg); }
 }
 
-/* Attack panel rotation classes with dedicated animations */
-.attack-face-up {
-  animation: panelInUp 0.15s forwards;
-}
-.attack-face-down {
-  animation: panelInDown 0.15s forwards;
-}
+.attack-face-up { animation: panelInUp 0.15s forwards; }
+.attack-face-down { animation: panelInDown 0.15s forwards; }
 
-/* Horizontal Life in Panel - Keeps them side-by-side */
+/* =========================================
+   6. ATTACK PANEL CONTENT
+   ========================================= */
+/* Mini Life Displays */
 .panel-life-display {
   display: flex;
   flex-direction: row;
@@ -206,6 +218,10 @@ button:active {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+.mini-life-inverted {
+  transform: rotate(180deg);
 }
 
 .mini-label {
@@ -230,18 +246,13 @@ button:active {
 
 .mini-controls button {
   background-color: #34495e;
-  color: white;
   border-radius: 8px;
-  font-weight: 600;
   font-size: 20px;
   width: 38px;
   height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Horizontal Stats in Panel */
+/* Stat Controls */
 .stat-group {
   display: flex;
   flex-direction: row;
@@ -264,7 +275,6 @@ button:active {
 }
 
 .stat-value {
-  /* Increased stat numbers */
   font-size: clamp(60px, 10vh, 80px);
   font-weight: bold;
   line-height: 1;
@@ -278,18 +288,14 @@ button:active {
 }
 
 .stat-controls button {
+  background-color: #c45a1a;
+  border-radius: 10px;
   font-size: 24px;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
-  background-color: #c45a1a;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Zone buttons */
+/* Zone Buttons */
 .zone-buttons {
   display: flex;
   justify-content: space-between;
@@ -313,18 +319,15 @@ button:active {
 .zone-buttons button[data-zone="mid"] { background-color: #ffa500; color: white;}
 .zone-buttons button[data-zone="low"] { background-color: #ffec4c; color: white;}
 
-/* Highlight selected attack zone */
 .zone-buttons button.selected-zone {
   opacity: 1;
-  box-shadow: 0 0 0 3px white inset;
+  border: 2px solid #FFD700;
+  box-shadow: 0 0 12px #FFD700, inset 0 0 4px #FFD700;
+  transform: scale(1.05);
+  filter: brightness(1.2);
 }
-.selected-zone {
-  border: 2px solid #FFD700; /* A crisp gold border */
-  box-shadow: 0 0 12px #FFD700, inset 0 0 4px #FFD700; /* Outer and inner gold glow */
-  transform: scale(1.05); /* Makes the active button pop out slightly */
-  filter: brightness(1.2); /* Brightens the button up */
-}
-/* Block buttons */
+
+/* Block Buttons */
 .block-buttons {
   display: flex;
   justify-content: space-between;
@@ -335,14 +338,14 @@ button:active {
 .block-buttons button {
   flex: 1;
   background-color: #c45a1a;
-  color: white;
   padding: 14px 0;
   border-radius: 8px;
-  font-weight: bold;
   font-size: 15px;
 }
 
-/* Game Over Panel & Startup Panel */
+/* =========================================
+   7. DICE ROLL & GAME OVER
+   ========================================= */
 .game-over-panel {
   text-align: center;
   animation: panelInUp 0.15s forwards;
@@ -361,18 +364,12 @@ button:active {
   font-weight: bold;
   margin-top: 10px;
 }
-/* Flips the defending player's mini-life toward their side of the table */
-.mini-life-inverted {
-  transform: rotate(180deg);
-}
-/* Dice Roll Styles */
+
 .roll-button {
   background-color: #34495e;
-  color: white;
   width: 100%;
   padding: 14px 0;
   border-radius: 8px;
-  font-weight: bold;
   font-size: 16px;
   letter-spacing: 1px;
 }
@@ -412,14 +409,38 @@ button:active {
   margin: 0;
   animation: panelInUp 0.3s ease;
 }
-/* Adds a bold black border to block buttons and life total buttons */
-.block-buttons button,
-.controls button,
-.mini-controls button,
-.stat-controls button,
-.roll-button {
-  border: 2px solid black;
+/* Center Divider - Now transparent */
+.center-divider {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 20px; /* Reduced height to keep the players close */
+  position: relative;
+  z-index: 5;
+  background: transparent; /* Ensures it blends with the screen */
+}
 
-  /* Optional: Adds a hard black drop-shadow to make the buttons look 3D */
+/* Reset Button - Now Orange with better centering */
+.divider-reset-btn {
+  background: #c45a1a; /* Matching the Game Over reset orange */
+  color: #f4f4f4;
+  border-radius: 10px;
+  width: 65px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border: 2px solid black;
   box-shadow: 2px 2px 0px black;
+  line-height: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.divider-reset-btn:active {
+  background: #ED1C24; /* Changes to red when pressed */
+  transform: scale(0.92);
+  box-shadow: 1px 1px 0px black;
 }
