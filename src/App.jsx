@@ -5,15 +5,11 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import logo from './assets/logo.png'; 
 import "./App.css";
 
-// CONSTANTS
-const START_LIFE = 25;
+// =========================================
+// 1. CONSTANTS & CONFIG
+// =========================================
 const DEFAULT_STAT = 4;
-
-const ZONES = {
-  HIGH: "high",
-  MID: "mid",
-  LOW: "low"
-};
+const ZONES = { HIGH: "high", MID: "mid", LOW: "low" };
 
 const zoneColors = {
   [ZONES.HIGH]: "#ED1C24",
@@ -22,14 +18,14 @@ const zoneColors = {
   default: "#2c3e50"
 };
 
-// MEMO COMPONENTS
+// =========================================
+// 2. MEMOIZED SUB-COMPONENTS
+// =========================================
+
 const PlayerSection = memo(({ num, life, onUpdate, onOpen, rotated, isFirst }) => (
-  <div
-    className={`player ${rotated ? "player-rotate" : ""} ${isFirst ? "first-player-highlight" : ""}`}
-    onClick={onOpen}
-  >
+  <div className={`player ${rotated ? "player-rotate" : ""}`} onClick={onOpen}>
     <div className={`player-name ${isFirst ? "first-name-active" : ""}`}>
-      Player {num} {isFirst && <span className="first-tag">1ST</span>}
+      PLAYER {num}
     </div>
     <div className="life-total">{life}</div>
     <div className="controls">
@@ -61,55 +57,64 @@ const StatControl = memo(({ label, val, set }) => (
   </div>
 ));
 
-function App() {
-  const [player1Life, setPlayer1Life] = useState(START_LIFE);
-  const [player2Life, setPlayer2Life] = useState(START_LIFE);
-  const [targetPlayer, setTargetPlayer] = useState(null);
+// =========================================
+// 3. MAIN APPLICATION COMPONENT
+// =========================================
 
+function App() {
+  // --- State: Game Stats ---
+  const [baseLifeP1, setBaseLifeP1] = useState(25);
+  const [baseLifeP2, setBaseLifeP2] = useState(25);
+  const [player1Life, setPlayer1Life] = useState(25);
+  const [player2Life, setPlayer2Life] = useState(25);
+
+  // --- State: Attack Panel ---
+  const [targetPlayer, setTargetPlayer] = useState(null);
   const [attackSpeed, setAttackSpeed] = useState(DEFAULT_STAT);
   const [attackDamage, setAttackDamage] = useState(DEFAULT_STAT);
   const [attackZone, setAttackZone] = useState(ZONES.HIGH);
 
+  // --- State: UI & Flow ---
   const [gameOver, setGameOver] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [firstPlayer, setFirstPlayer] = useState(null);
-  const [diceRolls, setDiceRolls] = useState(null); // 
+  const [diceRolls, setDiceRolls] = useState(null); 
   const [history, setHistory] = useState([]);
 
-  // Stable haptics
+  // --- Helpers ---
   const triggerHaptic = useCallback(async (style = ImpactStyle.Light) => {
-    try {
-      await Haptics.impact({ style });
-    } catch {}
+    try { await Haptics.impact({ style }); } catch {}
   }, []);
 
-  // Init + cleanup
+  // --- Lifecycle: Device Init ---
   useEffect(() => {
     const initApp = async () => {
-      try {
-        await KeepAwake.keepAwake();
-        await SplashScreen.hide();
-      } catch {
-        console.log("Capacitor plugins skipped (browser)");
-      }
+      try { 
+        await KeepAwake.keepAwake(); 
+        await SplashScreen.hide(); 
+      } catch {}
     };
     initApp();
-
-    return () => {
-      KeepAwake.allowSleep?.();
-    };
   }, []);
 
-  // Update life
+  // --- Lifecycle: Back Button Handling ---
+  useEffect(() => {
+    if (targetPlayer || showResetConfirm) {
+      window.history.pushState({ panelOpen: true }, "");
+    }
+    const handleBackButton = () => {
+      if (targetPlayer) setTargetPlayer(null);
+      else if (showResetConfirm) setShowResetConfirm(false);
+    };
+    window.addEventListener("popstate", handleBackButton);
+    return () => window.removeEventListener("popstate", handleBackButton);
+  }, [targetPlayer, showResetConfirm]);
+
+  // --- Logic: Game Actions ---
   const updatePlayerLife = useCallback((playerNum, delta) => {
     if (delta === 0) return;
-
     triggerHaptic(ImpactStyle.Light);
-
-    setHistory(prev => [
-      ...prev,
-      { p1: player1Life, p2: player2Life }
-    ]);
+    setHistory(prev => [...prev, { p1: player1Life, p2: player2Life }]);
 
     if (playerNum === 1) {
       setPlayer1Life(prev => {
@@ -127,133 +132,124 @@ function App() {
   }, [player1Life, player2Life, triggerHaptic]);
 
   const resetGame = () => {
-    setPlayer1Life(START_LIFE);
-    setPlayer2Life(START_LIFE);
-    setHistory([]);
-    setFirstPlayer(null);
+    setPlayer1Life(baseLifeP1); 
+    setPlayer2Life(baseLifeP2);
+    setHistory([]); 
+    setFirstPlayer(null); 
     setGameOver(null);
-    setShowResetConfirm(false);
+    setShowResetConfirm(false); 
     triggerHaptic(ImpactStyle.Heavy);
   };
 
   const handleUndo = () => {
     if (history.length === 0) return;
-
     const prevState = history[history.length - 1];
-
-    setPlayer1Life(prevState.p1);
+    setPlayer1Life(prevState.p1); 
     setPlayer2Life(prevState.p2);
-    setGameOver(null);
-
+    setGameOver(null); 
     setHistory(prev => prev.slice(0, -1));
     triggerHaptic(ImpactStyle.Medium);
   };
 
-const rollDice = () => {
+  const rollDice = () => {
     triggerHaptic(ImpactStyle.Heavy);
-
-    let p1Roll, p2Roll;
-    do {
-      p1Roll = Math.floor(Math.random() * 20) + 1;
-      p2Roll = Math.floor(Math.random() * 20) + 1;
-    } while (p1Roll === p2Roll);
-
-    // FIXED: Save the rolls instead of immediately closing the modal
-    setDiceRolls({ 
-      p1: p1Roll, 
-      p2: p2Roll, 
-      winner: p1Roll > p2Roll ? 1 : 2 
-    });
+    let p1, p2; 
+    do { 
+      p1 = Math.floor(Math.random() * 20) + 1; 
+      p2 = Math.floor(Math.random() * 20) + 1; 
+    } while (p1 === p2);
+    setDiceRolls({ p1, p2, winner: p1 > p2 ? 1 : 2 });
   };
 
-  const openAttackPanel = (playerNum) => {
-    triggerHaptic(ImpactStyle.Medium);
-    setTargetPlayer(playerNum);
-    setAttackSpeed(DEFAULT_STAT);
-    setAttackDamage(DEFAULT_STAT);
+  const openAttackPanel = (num) => {
+    triggerHaptic(ImpactStyle.Medium); 
+    setTargetPlayer(num);
+    setAttackSpeed(DEFAULT_STAT); 
+    setAttackDamage(DEFAULT_STAT); 
     setAttackZone(ZONES.HIGH);
   };
 
-  const closeAttackPanel = () => setTargetPlayer(null);
-
-  const applyDamage = (amount) => {
-    updatePlayerLife(targetPlayer, -amount);
-    closeAttackPanel();
-  };
-
-  const handleZoneClick = (zone) => {
-    triggerHaptic(ImpactStyle.Light);
-    setAttackZone(zone);
+  const applyDamage = (amount) => { 
+    updatePlayerLife(targetPlayer, -amount); 
+    setTargetPlayer(null); 
   };
 
   return (
     <div className="container main-screen">
       <img src={logo} alt="Momentum Logo" className="background-watermark" />
-
+      
+      {/* 4. MAIN GAME AREA */}
       <div className="game-area">
-        <PlayerSection
-          num={2}
-          life={player2Life}
-          onUpdate={updatePlayerLife}
-          onOpen={() => openAttackPanel(2)}
-          rotated
-          isFirst={firstPlayer === 2}
+        <PlayerSection 
+          num={2} 
+          life={player2Life} 
+          onUpdate={updatePlayerLife} 
+          onOpen={() => openAttackPanel(2)} 
+          rotated 
+          isFirst={firstPlayer === 2} 
         />
-
+        
         <div className="center-divider">
-          <div style={{ display: 'flex', gap: '10px', zIndex: 20 }}>
-            {/* FIXED: Added back the classes for Reset and Undo */}
-            <button className="divider-reset-btn" onClick={() => setShowResetConfirm(true)}>↻</button>
-            <button className="divider-undo-btn" onClick={handleUndo} disabled={!history.length}>↶</button>
+          <div style={{ display: 'flex', gap: '15px', zIndex: 20 }}>
+            <button className="divider-reset-btn" onClick={() => setShowResetConfirm(true)} aria-label="Reset">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+            <button className="divider-undo-btn" onClick={handleUndo} disabled={!history.length} aria-label="Undo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <PlayerSection
-          num={1}
-          life={player1Life}
-          onUpdate={updatePlayerLife}
-          onOpen={() => openAttackPanel(1)}
-          isFirst={firstPlayer === 1}
+        <PlayerSection 
+          num={1} 
+          life={player1Life} 
+          onUpdate={updatePlayerLife} 
+          onOpen={() => openAttackPanel(1)} 
+          isFirst={firstPlayer === 1} 
         />
       </div>
 
-      {/* First Player */}
+      {/* 5. INITIAL SETUP / DICE ROLL MODAL */}
       {!firstPlayer && !gameOver && (
         <div className="modal-backdrop">
-          <div className="attack-panel game-over-panel">
-            <h2 style={{ margin: "0 0 20px 0" }}>Who Goes First?</h2>
-            
-            {/* If we have dice rolls, show the results! */}
+          <div className="attack-panel attack-face-up">
             {diceRolls ? (
               <>
+                <h2>Roll Results</h2>
                 <div className="dice-results">
-                  {/* Player 1 is now on the left for the Player 1 facing screen */}
-                  <div className="dice-score">
-                    <span>P1 Roll</span>
-                    <strong>{diceRolls.p1}</strong>
-                  </div>
-                  <div className="dice-score">
-                    <span>P2 Roll</span>
-                    <strong>{diceRolls.p2}</strong>
-                  </div>
+                  <div className="dice-score"><span>P1 Roll</span><strong>{diceRolls.p1}</strong></div>
+                  <div className="dice-score"><span>P2 Roll</span><strong>{diceRolls.p2}</strong></div>
                 </div>
-                <h3 className="roll-winner" style={{ marginBottom: "20px" }}>
-                  Player {diceRolls.winner} goes first!
-                </h3>
-                <button 
-                  className="reset-button" 
-                  onClick={() => {
-                    setFirstPlayer(diceRolls.winner);
-                    setDiceRolls(null); // Clear the rolls for next time
-                  }}
-                >
-                  Start Game
-                </button>
+                <h3 className="roll-winner" style={{ textAlign: 'center' }}>Player {diceRolls.winner} goes first!</h3>
+                <button className="roll-button" onClick={() => { setFirstPlayer(diceRolls.winner); setDiceRolls(null); }}>START GAME</button>
               </>
             ) : (
-              /* Otherwise, show the buttons to roll or pick manually */
               <>
-                <div className="block-buttons" style={{ marginBottom: "16px" }}>
+                <div className="stat-label">Starting Life</div>
+                <div className="dice-results">
+                  <div className="dice-score">
+                    <span>P1 Total</span><strong>{baseLifeP1}</strong>
+                    <div className="stat-controls">
+                      <button onClick={() => { setBaseLifeP1(v => Math.max(1, v - 1)); setPlayer1Life(v => Math.max(1, v - 1)); triggerHaptic(); }}>-</button>
+                      <button onClick={() => { setBaseLifeP1(v => v + 1); setPlayer1Life(v => v + 1); triggerHaptic(); }}>+</button>
+                    </div>
+                  </div>
+                  <div className="dice-score">
+                    <span>P2 Total</span><strong>{baseLifeP2}</strong>
+                    <div className="stat-controls">
+                      <button onClick={() => { setBaseLifeP2(v => Math.max(1, v - 1)); setPlayer2Life(v => Math.max(1, v - 1)); triggerHaptic(); }}>-</button>
+                      <button onClick={() => { setBaseLifeP2(v => v + 1); setPlayer2Life(v => v + 1); triggerHaptic(); }}>+</button>
+                    </div>
+                  </div>
+                </div>
+                <div className="stat-label">Who Goes First?</div>
+                <div className="block-buttons">
                   <button onClick={() => setFirstPlayer(1)}>Player 1</button>
                   <button onClick={() => setFirstPlayer(2)}>Player 2</button>
                 </div>
@@ -264,44 +260,40 @@ const rollDice = () => {
         </div>
       )}
 
-      {/* Attack */}
-    {targetPlayer && !gameOver && (
-        <div className="modal-backdrop" onClick={closeAttackPanel}>
-          <div
-            /* FIXED 1: targetPlayer === 1 makes the panel face Player 2 */
-            className={`attack-panel ${targetPlayer === 1 ? "attack-face-down" : "attack-face-up"}`}
-            onClick={e => e.stopPropagation()}
+      {/* 6. ATTACK CALCULATION MODAL */}
+      {targetPlayer && !gameOver && (
+        <div className="modal-backdrop" onClick={() => setTargetPlayer(null)}>
+          <div 
+            className={`attack-panel ${targetPlayer === 1 ? "attack-face-down" : "attack-face-up"}`} 
+            onClick={e => e.stopPropagation()} 
             style={{ backgroundColor: zoneColors[attackZone] }}
           >
-          <div className="panel-life-display">
-            {/* Logic: If targetPlayer is 1, the panel is flipped to face P2. 
-                In that case, P2 should be on the left. 
-                Otherwise, P1 is on the left. */}
-            {targetPlayer === 1 ? (
-              <>
-                <MiniLife label="P2" life={player2Life} onUpdate={(d) => updatePlayerLife(2, d)} inverted={false} />
-                <MiniLife label="P1" life={player1Life} onUpdate={(d) => updatePlayerLife(1, d)} inverted={true} />
-              </>
-            ) : (
-              <>
-                <MiniLife label="P1" life={player1Life} onUpdate={(d) => updatePlayerLife(1, d)} inverted={false} />
-                <MiniLife label="P2" life={player2Life} onUpdate={(d) => updatePlayerLife(2, d)} inverted={true} />
-              </>
-            )}
-          </div>
-
+            <div className="panel-life-display">
+              {targetPlayer === 1 ? (
+                <>
+                  <MiniLife label="P2" life={player2Life} onUpdate={(d) => updatePlayerLife(2, d)} />
+                  <MiniLife label="P1" life={player1Life} onUpdate={(d) => updatePlayerLife(1, d)} inverted />
+                </>
+              ) : (
+                <>
+                  <MiniLife label="P1" life={player1Life} onUpdate={(d) => updatePlayerLife(1, d)} />
+                  <MiniLife label="P2" life={player2Life} onUpdate={(d) => updatePlayerLife(2, d)} inverted />
+                </>
+              )}
+            </div>
+            
             <div className="stat-group">
               <StatControl label="Speed" val={attackSpeed} set={setAttackSpeed} />
               <StatControl label="Damage" val={attackDamage} set={setAttackDamage} />
             </div>
 
-      <div className="zone-buttons">
+            <div className="zone-buttons">
               {Object.values(ZONES).map(z => (
                 <button 
                   key={z} 
-                  data-zone={z} /* <--- ADD THIS LINE BACK IN */
-                  className={attackZone === z ? "selected-zone" : ""}
-                  onClick={() => handleZoneClick(z)}
+                  data-zone={z} 
+                  className={attackZone === z ? "selected-zone" : ""} 
+                  onClick={() => { setAttackZone(z); triggerHaptic(); }}
                 >
                   {z.toUpperCase()}
                 </button>
@@ -317,14 +309,11 @@ const rollDice = () => {
         </div>
       )}
 
-      {/* Reset Confirmation */}
+      {/* 7. RESET CONFIRMATION MODAL */}
       {showResetConfirm && (
         <div className="modal-backdrop" onClick={() => setShowResetConfirm(false)}>
-          {/* FIXED: Added game-over-panel class to center the text */}
           <div className="attack-panel game-over-panel" onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 10px 0" }}>Reset Game?</h2>
-            <p style={{ marginBottom: "25px", opacity: 0.8 }}>Are you sure you want to restart?</p>
-            {/* FIXED: Formatted the buttons nicely with the block-buttons class */}
+            <h2>Reset Game?</h2>
             <div className="block-buttons">
               <button style={{ backgroundColor: "#34495e" }} onClick={() => setShowResetConfirm(false)}>Cancel</button>
               <button style={{ backgroundColor: "#ED1C24" }} onClick={resetGame}>Reset</button>
@@ -333,12 +322,11 @@ const rollDice = () => {
         </div>
       )}
 
-      {/* Game Over */}
+      {/* 8. GAME OVER MODAL */}
       {gameOver && (
         <div className="modal-backdrop">
           <div className="attack-panel game-over-panel">
             <h2>PLAYER {gameOver} WINS!</h2>
-            {/* FIXED: Restored the reset-button class */}
             <button className="reset-button" onClick={resetGame}>New Game</button>
           </div>
         </div>

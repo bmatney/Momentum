@@ -1,28 +1,9 @@
 /* =========================================
-   1. BASE & RESETS
+   1. GLOBAL & CORE STYLES
    ========================================= */
 * {
   box-sizing: border-box;
 }
-
-h2, 
-.player-name, 
-.life-total, 
-.mini-life-val, 
-.mini-label,
-.stat-value, 
-.stat-label,
-.dice-score strong, 
-.roll-winner,
-.block-buttons,
-button {
-  text-shadow:
-    -1px -1px 0 #000,
-     1px -1px 0 #000,
-    -1px  1px 0 #000,
-     1px  1px 0 #000;
-}
-
 
 body {
   margin: 0;
@@ -36,39 +17,44 @@ body {
   overflow: hidden;
 }
 
+/* Global Text Shadows for readability */
+h2, .player-name, .life-total, .mini-life-val, .mini-label, 
+.stat-value, .stat-label, .dice-score strong, .roll-winner, button {
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
 /* =========================================
-   2. SHARED BUTTON STYLES
+   2. BUTTON BASICS
    ========================================= */
 button {
-  border: none;
+  border: 2px solid black;
   cursor: pointer;
   transition: transform 0.1s ease, background-color 0.2s ease;
+  box-shadow: 2px 2px 0px black;
+  font-family: inherit;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 button:active {
   transform: scale(0.95);
 }
 
-.controls button,
-.mini-controls button,
-.stat-controls button,
-.block-buttons button,
-.roll-button {
-border: 2px solid black;
-  box-shadow: 2px 2px 0px black;
-  font-family: inherit;
-  font-weight: bold;
-  font-size: 16px;
-  color: #f4f4f4;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* Adjustment Buttons (Main, Mini, and Stats) */
+.controls button, 
+.mini-controls button, 
+.stat-controls button {
+  background-color: #c45a1a;
+  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
 }
 
 /* =========================================
-   3. MAIN LAYOUT & GAME AREA
+   3. MAIN GAME SCREEN
    ========================================= */
 .container {
   display: flex;
@@ -88,387 +74,7 @@ border: 2px solid black;
   gap: clamp(20px, 5vh, 50px);
   width: 100%;
   position: relative;
-  z-index: 10; 
-}
-
-.center-divider {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 20px;
-  position: relative;
-  z-index: 15;
-  background: transparent;
-}
-
-/* =========================================
-   4. PLAYER UI
-   ========================================= */
-.player {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 8px;
-  padding: 10px;
-  transition: background 0.3s ease;
-}
-
-.player-rotate {
-  transform: rotate(180deg);
-}
-
-.player-name {
-  font-size: 18px;
-  opacity: 0.8;
-  margin: 0;
-  transition: all 0.3s ease;
-}
-
-.life-total {
-  font-size: clamp(40px, 8vh, 70px);
-  font-weight: bold;
-  cursor: pointer;
-  margin: 48px;
-  line-height: 1;
-}
-
-.controls {
-  display: flex;
-  flex-direction: row;
-  gap: 15px;
-}
-
-.controls button {
-  background-color: #c45a1a;
-  border-radius: 12px;
-  font-size: 24px;
-  width: 48px;
-  height: 48px;
-}
-
-.controls button:hover {
-  background-color: #e05a20;
-}
-
-.main-screen .player .player-name,
-.main-screen .player .life-total,
-.main-screen .player .controls {
-  transform: scale(1.5);
-}
-
-/* First Player Highlights */
-.first-player-highlight {
-  background: radial-gradient(ellipse at center, rgba(196, 90, 26, 0.15) 0%, transparent 70%);
-  border-radius: 20px;
-}
-
-.first-name-active {
-  color: #c45a1a;
-  font-weight: bold;
-  text-shadow: 0 0 10px rgba(196, 90, 26, 0.5);
-  opacity: 1;
-}
-
-.first-tag {
-  font-size: 12px;
-  opacity: 0.8;
-  vertical-align: middle;
-  margin-left: 4px;
-}
-
-/* =========================================
-   5. MODALS & PANELS
-   ========================================= */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  height: 100dvh;
-  background: rgba(11, 28, 45, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 100;
-}
-
-.attack-panel {
-  background: #122b44;
-  padding: 20px;
-  border-radius: 16px;
-  width: min(90vw, 450px);
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  text-align: center;
-  gap: 16px;
-  opacity: 0;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  transition: background-color 0.3s ease-in-out;
-}
-
-@keyframes panelInUp {
-  from { opacity: 0; transform: scale(0.95) rotate(0deg); }
-  to { opacity: 1; transform: scale(1) rotate(0deg); }
-}
-@keyframes panelInDown {
-  from { opacity: 0; transform: scale(0.95) rotate(180deg); }
-  to { opacity: 1; transform: scale(1) rotate(180deg); }
-}
-
-.attack-face-up { animation: panelInUp 0.15s forwards; }
-.attack-face-down { animation: panelInDown 0.15s forwards; }
-
-/* =========================================
-   6. ATTACK PANEL CONTENT
-   ========================================= */
-.panel-life-display {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-around;
-  align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.mini-life {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.mini-life-inverted {
-  transform: rotate(180deg);
-}
-
-.mini-label {
-  font-size: 12px;
-  opacity: 0.6;
-  font-weight: bold;
-  letter-spacing: 1px;
-}
-
-.mini-life-val {
-  font-size: clamp(28px, 4vh, 36px);
-  font-weight: bold;
-  line-height: 1;
-  margin: 4px 0;
-}
-
-.mini-controls {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-}
-
-.mini-controls button {
-  background-color: #34495e;
-  border-radius: 8px;
-  font-size: 20px;
-  width: 38px;
-  height: 38px;
-}
-
-.stat-group {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-around;
-  align-items: center;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.stat-label {
-  font-size: 16px;
-  font-weight: 600;
-  opacity: 0.8;
-  text-transform: uppercase;
-}
-
-.stat-value {
-  font-size: clamp(60px, 10vh, 80px);
-  font-weight: bold;
-  line-height: 1;
-  margin: 4px 0;
-}
-
-.stat-controls {
-  display: flex;
-  flex-direction: row;
-  gap: 12px;
-}
-
-.stat-controls button {
-  background-color: #c45a1a;
-  border-radius: 10px;
-  font-size: 24px;
-  width: 44px;
-  height: 44px;
-}
-
-.zone-buttons {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  margin: 20px 0;
-}
-
-.zone-buttons button {
-  flex: 1;
-  padding: 12px 0;
-  border-radius: 8px;
-  font-weight: 600;
-  color: black;
-  opacity: 0.6;
-  transition: all 0.2s ease-in-out;
-  border: 2px solid transparent;
-}
-
-/* Update these 3 lines in your App.css */
-.zone-buttons button[data-zone="high"] { 
-  background-color: #ED1C24; /* Official UVS High Red */
-  color: #f4f4f4; 
-}
-.zone-buttons button[data-zone="mid"] { 
-  background-color: #F7941D; /* Official UVS Mid Orange */
-  color: #f4f4f4; 
-}
-.zone-buttons button[data-zone="low"] { 
-  background-color: #FFDE00; /* Official UVS Low Yellow */
-  color: #000000; /* Black text for contrast */
-  text-shadow: none; /* Removes the black outline so the dark text stays clean */
-}
-
-.zone-buttons button.selected-zone {
-  opacity: 1;
-  border: 2px solid #FFD700;
-  box-shadow: 0 0 12px #FFD700, inset 0 0 4px #FFD700;
-  transform: scale(1.05);
-  filter: brightness(1.2);
-}
-
-.block-buttons {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-}
-
-.block-buttons button {
-  flex: 1;
-  background-color: #c45a1a;
-  padding: 14px 0;
-  border-radius: 8px;
-  font-size: 15px;
-}
-
-/* =========================================
-   7. DICE ROLL & GAME OVER
-   ========================================= */
-.game-over-panel {
-  text-align: center;
-  animation: panelInUp 0.15s forwards;
-}
-
-.game-over-panel h2 {
-  color: #f4f4f4;
-}
-
-.reset-button {
-  background: #c45a1a;
-  color: white;
-  padding: 15px 30px;
-  border-radius: 12px;
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 10px;
-}
-
-.roll-button {
-  background-color: #34495e;
-  width: 100%;
-  padding: 14px 0;
-  border-radius: 8px;
-  font-size: 16px;
-  letter-spacing: 1px;
-}
-
-.roll-button:hover {
-  background-color: #415b76;
-}
-
-.dice-results {
-  display: flex;
-  justify-content: space-around;
-  margin-bottom: 16px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
-}
-
-.dice-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.dice-score span {
-  font-size: 14px;
-  opacity: 0.6;
-}
-
-.dice-score strong {
-  font-size: 36px;
-  color: #c45a1a;
-}
-
-.roll-winner {
-  color: #f4f4f4;
-  margin: 0;
-  animation: panelInUp 0.3s ease;
-}
-
-/* =========================================
-   8. CENTER BUTTONS & WATERMARK
-   ========================================= */
-.divider-reset-btn,
-.divider-undo-btn {
-  background: #c45a1a;
-  color: #f4f4f4;
-  border-radius: 10px;
-  width: 65px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  border: 2px solid black;
-  box-shadow: 2px 2px 0px black;
-  line-height: 0;
-  padding: 0;
-  margin: 0;
-}
-
-.divider-reset-btn:active,
-.divider-undo-btn:active:not(:disabled) {
-  background: #ED1C24;
-  transform: scale(0.92);
-  box-shadow: 1px 1px 0px black;
-}
-
-.divider-undo-btn:disabled {
-  cursor: not-allowed;
-  transform: none;
+  z-index: 10;
 }
 
 .background-watermark {
@@ -477,9 +83,283 @@ border: 2px solid black;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 70%;
-  max-width: 400px;
-  opacity: 0.15;
+  opacity: 0.1;
   pointer-events: none;
   z-index: 1;
-  filter: grayscale(100%);
+}
+
+/* =========================================
+   4. PLAYER SECTIONS
+   ========================================= */
+.player {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+}
+
+.player-rotate {
+  transform: rotate(180deg);
+}
+
+.life-total {
+  font-size: clamp(80px, 15vh, 120px);
+  font-weight: 900;
+  margin: 20px 0;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;
+}
+
+/* Scaling for Main Screen UI */
+.main-screen .player .player-name, 
+.main-screen .player .life-total, 
+.main-screen .player .controls {
+  transform: scale(1.2);
+}
+
+/* First Player Glow Animation */
+.first-name-active {
+  color: #ffffff;
+  animation: playerGlow 2s infinite alternate;
+  font-weight: 900;
+}
+
+@keyframes playerGlow {
+  from {
+    text-shadow: 0 0 5px #fff, 0 0 10px #c45a1a, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  }
+  to {
+    text-shadow: 0 0 20px #fff, 0 0 30px #c45a1a, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    transform: scale(1.05);
+  }
+}
+
+/* =========================================
+   5. CENTER DIVIDER (UNDO/RESET)
+   ========================================= */
+.divider-reset-btn, 
+.divider-undo-btn {
+  background: #c45a1a;
+  width: 80px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.divider-reset-btn svg, 
+.divider-undo-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+.divider-undo-btn:disabled {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   6. MODAL & PANEL BASE
+   ========================================= */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 28, 45, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.attack-panel {
+  background: #122b44;
+  padding: 24px;
+  border-radius: 20px;
+  width: min(90vw, 450px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.attack-face-down {
+  transform: rotate(180deg);
+}
+
+/* =========================================
+   7. ATTACK PANEL COMPONENTS
+   ========================================= */
+.panel-life-display {
+  display: flex;
+  justify-content: space-around;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mini-life {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.mini-life-inverted {
+  transform: rotate(180deg);
+}
+
+.mini-life-val {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* Speed & Damage Stats */
+.stat-group {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: clamp(50px, 8vh, 70px);
+  font-weight: bold;
+}
+
+.stat-label {
+  text-transform: uppercase;
+  font-size: 14px;
+  opacity: 0.8;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+/* Zone Selection */
+.zone-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.zone-buttons button {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 8px;
+  opacity: 0.6;
+  color: white;
+}
+
+.zone-buttons button[data-zone="high"] { background-color: #ED1C24; }
+.zone-buttons button[data-zone="mid"] { background-color: #F7941D; }
+.zone-buttons button[data-zone="low"] { background-color: #FFDE00; color: black; text-shadow: none; }
+
+.zone-buttons button.selected-zone {
+  opacity: 1;
+  border: 2px solid white;
+  transform: scale(1.05);
+}
+
+/* Block Options */
+.block-buttons {
+  display: flex;
+  gap: 15px;
+}
+
+.block-buttons button {
+  flex: 1;
+  background-color: #c45a1a;
+  padding: 14px 10px;
+  border-radius: 8px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+/* =========================================
+   8. SETUP & DICE ROLL UI
+   ========================================= */
+.dice-results {
+  display: flex;
+  justify-content: space-around;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dice-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dice-score strong {
+  font-size: 2.5rem;
+  color: #fff;
+}
+
+.roll-button, 
+.reset-button {
+  background-color: #c45a1a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+/* =========================================
+   9. GAME OVER & DIALOGS
+   ========================================= */
+.game-over-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* =========================================
+   10. LAYOUT FIXES (HORIZONTAL CONTROLS)
+   ========================================= */
+.controls, 
+.mini-controls, 
+.stat-controls {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  width: auto;
+}
+
+.dice-score .stat-controls {
+  margin-top: 10px;
+}
+
+.controls button {
+  width: 54px;
+  height: 54px;
+}
+
+.mini-controls button, 
+.stat-controls button {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
 }
