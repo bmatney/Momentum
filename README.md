@@ -26,3 +26,20 @@ Starting life, current life, first player, pending dice results, and Undo histor
 are restored on launch. Temporary attack-panel edits are not saved.
 Invalid or unsupported saved data falls back to a fresh match. Failed writes
 show an in-app warning. Clearing app data removes the saved match.
+
+## Companion features
+
+- Roll winners choose first or second; the highlighted player is the first player.
+- Attack buttons preview damage. Throw applies half damage, rounded up, on a full block.
+- History shows health changes in reverse order and supports Undo.
+- Optional player names and vibration/screen-awake settings are saved locally.
+- Help includes rules, privacy, support contact, and the unofficial-app notice.
+- Barlow Condensed is bundled for offline use under the license in `public/fonts/OFL.txt`.
+
+Settings use `momentum.preferences.v1`; existing `momentum.game.v1` saves remain compatible.
+Public privacy/support URLs and confirmed store versions are still required by `npm run release:check`.
+
+## Publishing and contact accounts
+
+See [release account references](docs/release-accounts.md) before publishing.
+Public support and other Momentum communications use momentumuvs@gmail.com.

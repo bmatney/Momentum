@@ -68,3 +68,20 @@ export function gameReducer(state, action) {
     default: return state;
   }
 }
+
+// Compute previews and applied damage from the same rule.
+export function resolveDamage(damage, block, isThrow = false) {
+  const value = Math.max(0, damage);
+  if (block === 'none') return value;
+  if (block === 'half' || isThrow) return Math.ceil(value / 2);
+  return 0;
+}
+
+export function healthChanges(game) {
+  return game.history.flatMap((before, index) => {
+    const after = game.history[index + 1] ?? { p1: game.player1Life, p2: game.player2Life };
+    return [1, 2].filter(player => before[`p${player}`] !== after[`p${player}`])
+      .map(player => ({ id: `${index}-${player}`, player, from: before[`p${player}`],
+        to: after[`p${player}`], delta: after[`p${player}`] - before[`p${player}`] }));
+  }).reverse();
+}

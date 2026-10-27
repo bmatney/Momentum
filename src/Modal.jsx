@@ -16,7 +16,7 @@ export default function Modal({ label, onClose, className, children, ...props })
       onClose();
     }
     if (event.key !== 'Tab') return;
-    const buttons = [...panel.current.querySelectorAll('button:not(:disabled), [tabindex="0"]')];
+    const buttons = [...panel.current.querySelectorAll('button:not(:disabled), a[href], summary, input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')];
     const first = buttons[0];
     const last = buttons.at(-1);
     if (!first) { event.preventDefault(); return; }

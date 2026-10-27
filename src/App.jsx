@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useReducer, useRef, useEffectEvent, memo } from "react";
 
-import { gameReducer, loadGame, saveGame, initialGame } from './game';
+import { gameReducer, loadGame, saveGame, initialGame, resolveDamage, healthChanges } from './game';
 import Modal from './Modal';
+import { defaultPreferences, loadPreferences, savePreferences } from './preferences';
+import release from '../release.config.json';
+import fontLicense from '../public/fonts/OFL.txt?raw';
 
 // Capacitor Imports
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -23,12 +26,13 @@ const ZONES = { HIGH: "high", MID: "mid", LOW: "low" };
 // =========================================
 // 2. MEMOIZED SUB-COMPONENTS
 // =========================================
-const PlayerSection = memo(({ num, life, onUpdate, onOpen, rotated, isFirst }) => (
+const PlayerSection = memo(({ num, name, life, onUpdate, onOpen, rotated, isFirst }) => (
   <div className={`player ${rotated ? "player-rotate" : ""}`} onClick={() => onOpen(num)}>
     <button className={`player-name player-open ${isFirst ? "first-name-active" : ""}`} aria-label={`Open attack panel for player ${num}`} onClick={e => { e.stopPropagation(); onOpen(num); }}>
-      PLAYER {num}
+      {name}
     </button>
 
+    <span className="player-caption">P{num} · {isFirst ? "Goes first" : "Tap name for attack"}</span>
     <div className="life-total">{life}</div>
 
     <div className="controls">
@@ -70,6 +74,16 @@ function App() {
     try { return loadGame(window.localStorage); } catch { return initialGame; }
   });
   const { baseLifeP1, baseLifeP2, player1Life, player2Life, firstPlayer, diceRolls, gameOver, history } = game;
+  const [preferences, setPreferences] = useState(() => {
+    try { return loadPreferences(window.localStorage); } catch { return defaultPreferences; }
+  });
+  const [preferencesSaveFailed, setPreferencesSaveFailed] = useState(false);
+  const playerName = num => preferences.names[num - 1].trim() || `Player ${num}`;
+  const updatePreferences = next => {
+    setPreferences(next);
+    try { setPreferencesSaveFailed(!savePreferences(window.localStorage, next)); }
+    catch { setPreferencesSaveFailed(true); }
+  };
   const [saveFailed, setSaveFailed] = useState(false);
   useEffect(() => {
     let saved = false;
@@ -85,29 +99,33 @@ function App() {
   const [attackDamage, setAttackDamage] = useState(DEFAULT_STAT);
   const [attackZone, setAttackZone]     = useState(ZONES.HIGH);
 
+  const [isThrow, setIsThrow] = useState(false);
+
   // --- State: UI & Flow ---
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  const [utilityPanel, setUtilityPanel] = useState(null);
+  const changes = healthChanges(game);
+
   // --- State: Touch Gestures ---
   const touchStart = useRef(null);
+  const modalHistoryOpen = useRef(false);
 
   // --- Helpers ---
   const triggerHaptic = useCallback(async (style = ImpactStyle.Light) => {
+    if (!preferences.haptics) return;
     try {
       await Haptics.impact({ style });
     } catch {
       // Silently fail on web environments
     }
-  }, []);
+  }, [preferences.haptics]);
 
   // --- Lifecycle: Device Initialization ---
   useEffect(() => {
     let cancelled = false;
     let splashTimer;
     const initApp = async () => {
-      try { await KeepAwake.keepAwake(); }
-      catch (e) { console.warn("KeepAwake not available:", e); }
-
       if (cancelled) return;
       try { await ScreenOrientation.lock({ orientation: 'portrait' }); }
       catch (e) { console.warn("ScreenOrientation not available:", e); }
@@ -126,15 +144,24 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const apply = () => (preferences.keepAwake ? KeepAwake.keepAwake() : KeepAwake.allowSleep())
+      .catch(error => console.warn('Screen awake setting unavailable:', error));
+    apply();
+  }, [preferences.keepAwake]);
+
   // Event callbacks see current dialog state without replacing native listeners.
   const handleBackButton = useEffectEvent(({ canGoBack }) => {
-    if (targetPlayer !== null) setTargetPlayer(null);
+    if (utilityPanel) setUtilityPanel(null);
+    else if (targetPlayer !== null) setTargetPlayer(null);
     else if (showResetConfirm) setShowResetConfirm(false);
     else if (canGoBack) window.history.back();
     else CapApp.exitApp().catch(error => console.warn('Unable to exit app:', error));
   });
   const handlePopState = useEffectEvent(() => {
-    if (targetPlayer !== null) setTargetPlayer(null);
+    modalHistoryOpen.current = false;
+    if (utilityPanel) setUtilityPanel(null);
+    else if (targetPlayer !== null) setTargetPlayer(null);
     else if (showResetConfirm) setShowResetConfirm(false);
   });
 
@@ -160,26 +187,20 @@ function App() {
     };
   }, []);
 
-  // Keep browser history and body styling in sync with dismissible dialogs.
+  // Only navigate back for entries created by this mounted app.
+  // A reload with #modal must not navigate away from the tracker.
   useEffect(() => {
-    const isModalOpen = targetPlayer !== null || showResetConfirm;
-
-    if (isModalOpen) {
-      document.body.classList.add('modal-open');
-      if (window.location.hash !== "#modal") {
-        window.history.pushState(null, "", "#modal");
-      }
-    } else {
-      document.body.classList.remove('modal-open');
-      if (window.location.hash === "#modal") {
-        window.history.back();
-      }
+    const isModalOpen = targetPlayer !== null || showResetConfirm || utilityPanel !== null;
+    if (isModalOpen && !modalHistoryOpen.current) {
+      window.history.pushState({ momentumModal: true }, '', '#modal');
+      modalHistoryOpen.current = true;
+    } else if (!isModalOpen && modalHistoryOpen.current) {
+      modalHistoryOpen.current = false;
+      if (window.history.state?.momentumModal) window.history.back();
+    } else if (!isModalOpen && window.location.hash === '#modal') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-
-    return () => {
-      document.body.classList.remove('modal-open');
-    };
-  }, [targetPlayer, showResetConfirm]);
+  }, [targetPlayer, showResetConfirm, utilityPanel]);
 
   // --- Logic: Game Actions ---
   const updatePlayerLife = useCallback((playerNum, delta) => {
@@ -199,6 +220,7 @@ function App() {
     setAttackSpeed(DEFAULT_STAT);
     setAttackDamage(DEFAULT_STAT);
     setAttackZone(ZONES.HIGH);
+    setIsThrow(false);
     triggerHaptic(ImpactStyle.Heavy);
   };
 
@@ -225,6 +247,7 @@ function App() {
     setAttackSpeed(DEFAULT_STAT);
     setAttackDamage(DEFAULT_STAT);
     setAttackZone(ZONES.HIGH);
+    setIsThrow(false);
   }, [triggerHaptic]);
 
   const applyDamage = (amount) => {
@@ -266,11 +289,12 @@ function App() {
     <div className="container main-screen">
       <img src={logo} alt="Momentum Logo" className="background-watermark" />
 
-      {saveFailed && <p role="alert" className="save-warning">Game could not be saved. Keep the app open to preserve this match.</p>}
+      {(saveFailed || preferencesSaveFailed) && <p role="alert" className="save-warning">Changes could not be saved. Keep the app open to preserve this session.</p>}
       {/* --- MAIN GAME AREA --- */}
-      <div className="game-area" inert={!firstPlayer || !!gameOver || targetPlayer !== null || showResetConfirm}>
+      <div className="game-area" inert={!firstPlayer || !!gameOver || targetPlayer !== null || showResetConfirm || utilityPanel !== null}>
         <PlayerSection
           num={2}
+          name={playerName(2)}
           life={player2Life}
           onUpdate={updatePlayerLife}
           onOpen={openAttackPanel}
@@ -279,7 +303,7 @@ function App() {
         />
 
         <div className="center-divider">
-          <div style={{ display: 'flex', gap: '15px', zIndex: 20 }}>
+          <div className="toolbar">
             <button
               className="divider-reset-btn"
               onClick={() => setShowResetConfirm(true)}
@@ -301,11 +325,15 @@ function App() {
                 <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
               </svg>
             </button>
+            <button className="toolbar-text" onClick={() => setUtilityPanel('history')}>History</button>
+            <button className="toolbar-text" onClick={() => setUtilityPanel('help')}>Help</button>
           </div>
+          <span className="brand-wordmark">MOMENTUM</span>
         </div>
 
         <PlayerSection
           num={1}
+          name={playerName(1)}
           life={player1Life}
           onUpdate={updatePlayerLife}
           onOpen={openAttackPanel}
@@ -314,7 +342,7 @@ function App() {
       </div>
 
       {/* --- INITIAL SETUP & DICE ROLL MODAL --- */}
-      {!firstPlayer && !gameOver && (
+      {!firstPlayer && !gameOver && !utilityPanel && (
         <div className="modal-backdrop">
           <Modal label="Game setup" className="attack-panel attack-face-up">
 
@@ -333,19 +361,25 @@ function App() {
                 </div>
 
                 <h3 className="roll-winner" style={{ textAlign: 'center' }}>
-                  Player {diceRolls.winner} goes first!
+                  {playerName(diceRolls.winner)} chooses
                 </h3>
 
-                <button
-                  className="roll-button"
-                  onClick={() => { dispatch({ type: 'start', player: diceRolls.winner }); }}
-                >
-                  START GAME
-                </button>
+                <p className="helper-text">The roll winner chooses to play first or second.</p>
+                <div className="block-buttons">
+                  <button onClick={() => dispatch({ type: 'start', player: diceRolls.winner })}>Go first</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 3 - diceRolls.winner })}>Go second</button>
+                </div>
               </>
             ) : (
               <>
-                <div className="setup-title">Starting Life</div>
+                <div className="setup-heading"><span className="eyebrow">MOMENTUM / NEW GAME</span><h1>Ready to battle?</h1></div>
+                <div className="name-fields">
+                  {[1, 2].map(num => <label key={num}>Player {num}
+                    <input aria-label={`Player ${num} name`} maxLength={24} placeholder={`Player ${num}`} value={preferences.names[num - 1]}
+                      onChange={event => updatePreferences({ ...preferences, names: preferences.names.map((name, i) => i === num - 1 ? event.target.value : name) })} />
+                  </label>)}
+                </div>
+                <div className="setup-title">Starting health</div>
                 <div className="dice-results">
                   <div className="dice-score">
                     <span>P1 Total</span>
@@ -367,13 +401,13 @@ function App() {
 
                 <div className="setup-title">Who Goes First?</div>
                 <div className="block-buttons">
-                  <button onClick={() => dispatch({ type: 'start', player: 1 })}>Player 1</button>
-                  <button onClick={() => dispatch({ type: 'start', player: 2 })}>Player 2</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 1 })}>{playerName(1)}</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 2 })}>{playerName(2)}</button>
                 </div>
                 <button className="roll-button" onClick={rollDice}>🎲 ROLL D20s</button>
               </>
             )}
-
+            <button className="text-button" onClick={() => setUtilityPanel('help')}>Help, settings & privacy</button>
           </Modal>
         </div>
       )}
@@ -415,6 +449,7 @@ function App() {
                 <button
                   key={z}
                   data-zone={z}
+                  aria-pressed={attackZone === z}
                   className={attackZone === z ? "selected-zone" : ""}
                   onClick={() => { setAttackZone(z); triggerHaptic(); }}
                 >
@@ -423,14 +458,63 @@ function App() {
               ))}
             </div>
 
-            <div className="block-buttons">
-              <button onClick={() => applyDamage(attackDamage)}>No Block</button>
-              <button onClick={() => applyDamage(Math.ceil(attackDamage / 2))}>Half Block</button>
-              <button onClick={() => applyDamage(0)}>Full Block</button>
+            <label className="toggle-row"><span>Throw attack<small>A full block still deals half damage, rounded up.</small></span>
+              <input type="checkbox" checked={isThrow} onChange={event => setIsThrow(event.target.checked)} />
+            </label>
+            <p className="helper-text">Apply damage to {playerName(targetPlayer)}</p>
+            <div className="block-buttons damage-buttons">
+              {[['none', 'No block'], ['half', 'Half block'], ['full', 'Full block']].map(([block, label]) => {
+                const amount = resolveDamage(attackDamage, block, isThrow);
+                return <button key={block} onClick={() => applyDamage(amount)} aria-label={`${label}: apply ${amount} damage`}>
+                  <span>{label}</span><strong>{amount}</strong><small>damage</small>
+                </button>;
+              })}
             </div>
           </Modal>
         </div>
       )}
+
+      {utilityPanel && <div className="modal-backdrop" onClick={() => setUtilityPanel(null)}>
+        <Modal label={utilityPanel === 'history' ? 'Health history' : 'Help and settings'} onClose={() => setUtilityPanel(null)} className="attack-panel utility-panel">
+          <div className="panel-heading"><h2>{utilityPanel === 'history' ? 'Health history' : 'Momentum'}</h2>
+            <button onClick={() => setUtilityPanel(null)}>Close</button></div>
+          {utilityPanel === 'history' ? <>
+            <p className="helper-text">Newest first. Undo removes the latest change.</p>
+            {changes.length ? <ol className="health-history">{changes.map(change => <li key={change.id}>
+              <span><b>{playerName(change.player)}</b><small>P{change.player} · {change.from} → {change.to}</small></span>
+              <strong className={change.delta > 0 ? 'health-gain' : 'health-loss'}>{change.delta > 0 ? '+' : ''}{change.delta}</strong>
+            </li>)}</ol> : <p>No health changes yet.</p>}
+            <button onClick={handleUndo} disabled={!history.length}>Undo last change</button>
+          </> : <>
+            <p className="helper-text">An unofficial companion for UniVersus. Not affiliated with or endorsed by UVS Games.</p>
+            <section><h3>Make it yours</h3>
+              <label className="toggle-row"><span>Vibration<small>Feedback when you change health or roll.</small></span>
+                <input type="checkbox" checked={preferences.haptics} onChange={e => updatePreferences({ ...preferences, haptics: e.target.checked })} /></label>
+              <label className="toggle-row"><span>Keep screen awake<small>Keep the tracker visible during play.</small></span>
+                <input type="checkbox" checked={preferences.keepAwake} onChange={e => updatePreferences({ ...preferences, keepAwake: e.target.checked })} /></label>
+            </section>
+            <section><h3>At the table</h3>
+              <p>Use + and − to adjust health. Tap a player’s name to calculate damage to that player. Set speed, damage, zone and Throw, then choose a block result. Card effects may require a manual health adjustment.</p>
+              <p>Undo corrects the last health change, even after a winning hit. History shows the current game’s changes. Reset starts a new game and keeps your starting health and names.</p>
+              <p>The highlighted player goes first; it is not a turn tracker. Roll winners choose first or second.</p>
+              <p>For tournament play, disable device messaging as required by the event rules and follow the organizer’s instructions.</p>
+              <a href="https://uvsgames.com/universus/organized-play/rules-and-documents/" target="_blank" rel="noreferrer">Official UniVersus rules ↗</a>
+            </section>
+            <section><h3>Privacy</h3>
+              <p>Names, game state, undo history and settings stay on this device. No account, advertising or analytics. Device backups may include app data.</p>
+              <p>Reset clears the match history; names and settings stay saved. Device app-data controls can remove saved data. External links and email use their providers’ privacy policies.</p>
+              {release.privacyPolicyUrl && <a href={release.privacyPolicyUrl} target="_blank" rel="noreferrer">Full privacy policy ↗</a>}
+            </section>
+            <section><h3>Support & credits</h3>
+              <a href={`mailto:${release.supportEmail}`}>{release.supportEmail}</a>
+              {release.supportUrl && <p><a href={release.supportUrl} target="_blank" rel="noreferrer">Support website ↗</a></p>}
+              <p>UniVersus belongs to its respective owners. Momentum uses original app artwork.</p>
+              <p>Barlow Condensed by Jeremy Tribby, licensed under the SIL Open Font License.</p>
+              <details><summary>Font license</summary><pre className="license-text">{fontLicense}</pre></details>
+            </section>
+          </>}
+        </Modal>
+      </div>}
 
       {/* --- RESET CONFIRMATION MODAL --- */}
       {showResetConfirm && (
