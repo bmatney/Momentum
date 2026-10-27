@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, useReducer, useRef, useEffectEvent, memo } from "react";
+
+import { gameReducer, loadGame, saveGame, initialGame } from './game';
+import Modal from './Modal';
 
 // Capacitor Imports
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -17,38 +20,31 @@ import "./App.css";
 const DEFAULT_STAT = 4;
 const ZONES = { HIGH: "high", MID: "mid", LOW: "low" };
 
-const zoneColors = {
-  [ZONES.HIGH]: "#ED1C24",
-  [ZONES.MID]:  "#F7941D",
-  [ZONES.LOW]:  "#FFDE00",
-  default:      "#2c3e50"
-};
-
 // =========================================
 // 2. MEMOIZED SUB-COMPONENTS
 // =========================================
 const PlayerSection = memo(({ num, life, onUpdate, onOpen, rotated, isFirst }) => (
-  <div className={`player ${rotated ? "player-rotate" : ""}`} onClick={onOpen}>
-    <div className={`player-name ${isFirst ? "first-name-active" : ""}`}>
+  <div className={`player ${rotated ? "player-rotate" : ""}`} onClick={() => onOpen(num)}>
+    <button className={`player-name player-open ${isFirst ? "first-name-active" : ""}`} aria-label={`Open attack panel for player ${num}`} onClick={e => { e.stopPropagation(); onOpen(num); }}>
       PLAYER {num}
-    </div>
+    </button>
 
     <div className="life-total">{life}</div>
 
     <div className="controls">
-      <button onClick={(e) => { e.stopPropagation(); onUpdate(num, -1); }}>-</button>
-      <button onClick={(e) => { e.stopPropagation(); onUpdate(num, 1); }}>+</button>
+      <button aria-label={`Decrease player ${num} life`} onClick={(e) => { e.stopPropagation(); onUpdate(num, -1); }}>-</button>
+      <button aria-label={`Increase player ${num} life`} onClick={(e) => { e.stopPropagation(); onUpdate(num, 1); }}>+</button>
     </div>
   </div>
 ));
 
-const MiniLife = memo(({ label, life, onUpdate, inverted }) => (
+const MiniLife = memo(({ num, label, life, onUpdate, inverted }) => (
   <div className={`mini-life ${inverted ? "mini-life-inverted" : ""}`}>
     <span className="mini-label">{label} LIFE</span>
     <div className="mini-life-val">{life}</div>
     <div className="mini-controls">
-      <button onClick={() => onUpdate(-1)}>-</button>
-      <button onClick={() => onUpdate(1)}>+</button>
+      <button aria-label={`Decrease ${label} life`} onClick={() => onUpdate(num, -1)}>-</button>
+      <button aria-label={`Increase ${label} life`} onClick={() => onUpdate(num, 1)}>+</button>
     </div>
   </div>
 ));
@@ -58,8 +54,8 @@ const StatControl = memo(({ label, val, set }) => (
     <div className="stat-label">{label}</div>
     <div className="stat-value">{val}</div>
     <div className="stat-controls">
-      <button onClick={() => set(v => v - 1)}>-</button>
-      <button onClick={() => set(v => v + 1)}>+</button>
+      <button aria-label={`Decrease ${label}`} onClick={() => set(v => v - 1)}>-</button>
+      <button aria-label={`Increase ${label}`} onClick={() => set(v => v + 1)}>+</button>
     </div>
   </div>
 ));
@@ -70,10 +66,18 @@ const StatControl = memo(({ label, val, set }) => (
 function App() {
 
   // --- State: Game Stats ---
-  const [baseLifeP1, setBaseLifeP1]   = useState(25);
-  const [baseLifeP2, setBaseLifeP2]   = useState(25);
-  const [player1Life, setPlayer1Life] = useState(25);
-  const [player2Life, setPlayer2Life] = useState(25);
+  const [game, dispatch] = useReducer(gameReducer, undefined, () => {
+    try { return loadGame(window.localStorage); } catch { return initialGame; }
+  });
+  const { baseLifeP1, baseLifeP2, player1Life, player2Life, firstPlayer, diceRolls, gameOver, history } = game;
+  const [saveFailed, setSaveFailed] = useState(false);
+  useEffect(() => {
+    let saved = false;
+    try { saved = saveGame(window.localStorage, game); } catch { /* Storage can be unavailable. */ }
+    // Storage is an external system; reflect its write result in the UI.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSaveFailed(!saved);
+  }, [game]);
 
   // --- State: Attack Panel ---
   const [targetPlayer, setTargetPlayer] = useState(null);
@@ -82,61 +86,82 @@ function App() {
   const [attackZone, setAttackZone]     = useState(ZONES.HIGH);
 
   // --- State: UI & Flow ---
-  const [gameOver, setGameOver]                 = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [firstPlayer, setFirstPlayer]           = useState(null);
-  const [diceRolls, setDiceRolls]               = useState(null);
-  const [history, setHistory]                   = useState([]);
 
   // --- State: Touch Gestures ---
-  const [touchStartX, setTouchStartX] = useState(null);
-  const [touchStartY, setTouchStartY] = useState(null);
+  const touchStart = useRef(null);
 
   // --- Helpers ---
   const triggerHaptic = useCallback(async (style = ImpactStyle.Light) => {
     try {
       await Haptics.impact({ style });
-    } catch (e) {
+    } catch {
       // Silently fail on web environments
     }
   }, []);
 
   // --- Lifecycle: Device Initialization ---
   useEffect(() => {
+    let cancelled = false;
+    let splashTimer;
     const initApp = async () => {
       try { await KeepAwake.keepAwake(); }
       catch (e) { console.warn("KeepAwake not available:", e); }
 
+      if (cancelled) return;
       try { await ScreenOrientation.lock({ orientation: 'portrait' }); }
       catch (e) { console.warn("ScreenOrientation not available:", e); }
 
-      setTimeout(async () => {
+      if (cancelled) return;
+      splashTimer = setTimeout(async () => {
         try { await SplashScreen.hide(); }
         catch (e) { console.warn("SplashScreen hide failed:", e); }
       }, 2000);
     };
 
     initApp();
+    return () => {
+      cancelled = true;
+      clearTimeout(splashTimer);
+    };
   }, []);
 
-  // --- Lifecycle: Back Button & History Handling ---
+  // Event callbacks see current dialog state without replacing native listeners.
+  const handleBackButton = useEffectEvent(({ canGoBack }) => {
+    if (targetPlayer !== null) setTargetPlayer(null);
+    else if (showResetConfirm) setShowResetConfirm(false);
+    else if (canGoBack) window.history.back();
+    else CapApp.exitApp().catch(error => console.warn('Unable to exit app:', error));
+  });
+  const handlePopState = useEffectEvent(() => {
+    if (targetPlayer !== null) setTargetPlayer(null);
+    else if (showResetConfirm) setShowResetConfirm(false);
+  });
+
   useEffect(() => {
-    const setupBackButton = async () => {
-      return await CapApp.addListener('backButton', ({ canGoBack }) => {
-        if (targetPlayer !== null) setTargetPlayer(null);
-        else if (showResetConfirm) setShowResetConfirm(false);
-        else if (canGoBack) window.history.back();
-        else CapApp.exitApp();
-      });
+    let disposed = false;
+    let listener;
+    const removeListener = handle => {
+      handle.remove().catch(error => console.warn('Unable to remove back listener:', error));
     };
+    CapApp.addListener('backButton', event => handleBackButton(event))
+      .then(handle => {
+        if (disposed) removeListener(handle);
+        else listener = handle;
+      })
+      .catch(error => console.warn('Back button not available:', error));
 
-    const backListenerPromise = setupBackButton();
-
-    const handlePopState = () => {
-      if (targetPlayer !== null) setTargetPlayer(null);
-      else if (showResetConfirm) setShowResetConfirm(false);
+    const onPopState = () => handlePopState();
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      disposed = true;
+      if (listener) removeListener(listener);
+      window.removeEventListener('popstate', onPopState);
     };
+  }, []);
 
+  // Keep browser history and body styling in sync with dismissible dialogs.
+  useEffect(() => {
     const isModalOpen = targetPlayer !== null || showResetConfirm;
 
     if (isModalOpen) {
@@ -151,69 +176,35 @@ function App() {
       }
     }
 
-    window.addEventListener("popstate", handlePopState);
-
     return () => {
-      window.removeEventListener("popstate", handlePopState);
       document.body.classList.remove('modal-open');
-      backListenerPromise.then(listener => listener.remove());
     };
   }, [targetPlayer, showResetConfirm]);
 
-// --- Logic: Game Actions ---
+  // --- Logic: Game Actions ---
   const updatePlayerLife = useCallback((playerNum, delta) => {
-    if (delta === 0) return;
-    triggerHaptic(ImpactStyle.Light);
-    setHistory(prev => [...prev, { p1: player1Life, p2: player2Life }]);
-
-    if (playerNum === 1) {
-      setPlayer1Life(prev => {
-        // Math.min forces it to never go above baseLifeP1
-        // Math.max forces it to never go below 0
-        const newVal = Math.min(baseLifeP1, Math.max(0, prev + delta));
-        if (newVal === 0) setGameOver(2);
-        return newVal;
-      });
-    } else {
-      setPlayer2Life(prev => {
-        // Math.min forces it to never go above baseLifeP2
-        // Math.max forces it to never go below 0
-        const newVal = Math.min(baseLifeP2, Math.max(0, prev + delta));
-        if (newVal === 0) setGameOver(1);
-        return newVal;
-      });
-    }
-  }, [player1Life, player2Life, baseLifeP1, baseLifeP2, triggerHaptic]);
+    dispatch({ type: 'life', player: playerNum, delta });
+    if (delta !== 0) triggerHaptic(ImpactStyle.Light);
+  }, [triggerHaptic]);
 
   const updateBaseLife = (playerNum, delta) => {
     triggerHaptic(ImpactStyle.Light);
-    if (playerNum === 1) {
-      setBaseLifeP1(v => Math.max(1, v + delta));
-      setPlayer1Life(v => Math.max(1, v + delta));
-    } else {
-      setBaseLifeP2(v => Math.max(1, v + delta));
-      setPlayer2Life(v => Math.max(1, v + delta));
-    }
+    dispatch({ type: 'base', player: playerNum, delta });
   };
 
   const resetGame = () => {
-    setPlayer1Life(baseLifeP1);
-    setPlayer2Life(baseLifeP2);
-    setHistory([]);
-    setFirstPlayer(null);
-    setGameOver(null);
+    dispatch({ type: 'reset' });
+    setTargetPlayer(null);
     setShowResetConfirm(false);
+    setAttackSpeed(DEFAULT_STAT);
+    setAttackDamage(DEFAULT_STAT);
+    setAttackZone(ZONES.HIGH);
     triggerHaptic(ImpactStyle.Heavy);
   };
 
   const handleUndo = () => {
-    if (history.length === 0) return;
-    const prevState = history[history.length - 1];
-
-    setPlayer1Life(prevState.p1);
-    setPlayer2Life(prevState.p2);
-    setGameOver(null);
-    setHistory(prev => prev.slice(0, -1));
+    dispatch({ type: 'undo' });
+    setTargetPlayer(null);
     triggerHaptic(ImpactStyle.Medium);
   };
 
@@ -225,16 +216,16 @@ function App() {
       p2 = Math.floor(Math.random() * 20) + 1;
     } while (p1 === p2);
 
-    setDiceRolls({ p1, p2, winner: p1 > p2 ? 1 : 2 });
+    dispatch({ type: 'roll', rolls: { p1, p2, winner: p1 > p2 ? 1 : 2 } });
   };
 
-  const openAttackPanel = (num) => {
+  const openAttackPanel = useCallback((num) => {
     triggerHaptic(ImpactStyle.Medium);
     setTargetPlayer(num);
     setAttackSpeed(DEFAULT_STAT);
     setAttackDamage(DEFAULT_STAT);
     setAttackZone(ZONES.HIGH);
-  };
+  }, [triggerHaptic]);
 
   const applyDamage = (amount) => {
     const resolvedDamage = Math.max(0, amount);
@@ -244,18 +235,20 @@ function App() {
 
   // --- Logic: Gesture Handling ---
   const handleTouchStart = (e) => {
-    setTouchStartX(e.targetTouches[0].clientX);
-    setTouchStartY(e.targetTouches[0].clientY);
+    const touch = e.targetTouches[0];
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
   };
 
   const handleTouchEnd = (e) => {
-    if (!touchStartX || !touchStartY) return;
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || !e.changedTouches.length) return;
 
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
 
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
+    const deltaX = touchEndX - start.x;
+    const deltaY = touchEndY - start.y;
 
     // Swipe Right OR Swipe Down clears modals
     if ((deltaX > 75 && Math.abs(deltaX) > Math.abs(deltaY)) ||
@@ -264,8 +257,6 @@ function App() {
       if (showResetConfirm) setShowResetConfirm(false);
     }
 
-    setTouchStartX(null);
-    setTouchStartY(null);
   };
 
   // =========================================
@@ -275,13 +266,14 @@ function App() {
     <div className="container main-screen">
       <img src={logo} alt="Momentum Logo" className="background-watermark" />
 
+      {saveFailed && <p role="alert" className="save-warning">Game could not be saved. Keep the app open to preserve this match.</p>}
       {/* --- MAIN GAME AREA --- */}
-      <div className="game-area">
+      <div className="game-area" inert={!firstPlayer || !!gameOver || targetPlayer !== null || showResetConfirm}>
         <PlayerSection
           num={2}
           life={player2Life}
           onUpdate={updatePlayerLife}
-          onOpen={() => openAttackPanel(2)}
+          onOpen={openAttackPanel}
           rotated
           isFirst={firstPlayer === 2}
         />
@@ -316,7 +308,7 @@ function App() {
           num={1}
           life={player1Life}
           onUpdate={updatePlayerLife}
-          onOpen={() => openAttackPanel(1)}
+          onOpen={openAttackPanel}
           isFirst={firstPlayer === 1}
         />
       </div>
@@ -324,7 +316,7 @@ function App() {
       {/* --- INITIAL SETUP & DICE ROLL MODAL --- */}
       {!firstPlayer && !gameOver && (
         <div className="modal-backdrop">
-          <div className="attack-panel attack-face-up">
+          <Modal label="Game setup" className="attack-panel attack-face-up">
 
             {diceRolls ? (
               <>
@@ -346,7 +338,7 @@ function App() {
 
                 <button
                   className="roll-button"
-                  onClick={() => { setFirstPlayer(diceRolls.winner); setDiceRolls(null); }}
+                  onClick={() => { dispatch({ type: 'start', player: diceRolls.winner }); }}
                 >
                   START GAME
                 </button>
@@ -359,30 +351,30 @@ function App() {
                     <span>P1 Total</span>
                     <strong>{baseLifeP1}</strong>
                     <div className="stat-controls">
-                      <button onClick={() => updateBaseLife(1, -1)}>-</button>
-                      <button onClick={() => updateBaseLife(1, 1)}>+</button>
+                      <button aria-label="Decrease player 1 starting life" onClick={() => updateBaseLife(1, -1)}>-</button>
+                      <button aria-label="Increase player 1 starting life" onClick={() => updateBaseLife(1, 1)}>+</button>
                     </div>
                   </div>
                   <div className="dice-score">
                     <span>P2 Total</span>
                     <strong>{baseLifeP2}</strong>
                     <div className="stat-controls">
-                      <button onClick={() => updateBaseLife(2, -1)}>-</button>
-                      <button onClick={() => updateBaseLife(2, 1)}>+</button>
+                      <button aria-label="Decrease player 2 starting life" onClick={() => updateBaseLife(2, -1)}>-</button>
+                      <button aria-label="Increase player 2 starting life" onClick={() => updateBaseLife(2, 1)}>+</button>
                     </div>
                   </div>
                 </div>
 
                 <div className="setup-title">Who Goes First?</div>
                 <div className="block-buttons">
-                  <button onClick={() => setFirstPlayer(1)}>Player 1</button>
-                  <button onClick={() => setFirstPlayer(2)}>Player 2</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 1 })}>Player 1</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 2 })}>Player 2</button>
                 </div>
                 <button className="roll-button" onClick={rollDice}>🎲 ROLL D20s</button>
               </>
             )}
 
-          </div>
+          </Modal>
         </div>
       )}
 
@@ -393,21 +385,22 @@ function App() {
           onClick={() => setTargetPlayer(null)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={() => { touchStart.current = null; }}
         >
-          <div
+          <Modal label="Attack calculation" onClose={() => setTargetPlayer(null)}
             className={`attack-panel ${targetPlayer === 1 ? "attack-face-down" : "attack-face-up"}`}
-            onClick={e => e.stopPropagation()}
           >
+            <button onClick={() => setTargetPlayer(null)}>Close Attack</button>
             <div className="panel-life-display">
               {targetPlayer === 1 ? (
                 <>
-                  <MiniLife label="P2" life={player2Life} onUpdate={(d) => updatePlayerLife(2, d)} />
-                  <MiniLife label="P1" life={player1Life} onUpdate={(d) => updatePlayerLife(1, d)} inverted />
+                  <MiniLife num={2} label="P2" life={player2Life} onUpdate={updatePlayerLife} />
+                  <MiniLife num={1} label="P1" life={player1Life} onUpdate={updatePlayerLife} inverted />
                 </>
               ) : (
                 <>
-                  <MiniLife label="P1" life={player1Life} onUpdate={(d) => updatePlayerLife(1, d)} />
-                  <MiniLife label="P2" life={player2Life} onUpdate={(d) => updatePlayerLife(2, d)} inverted />
+                  <MiniLife num={1} label="P1" life={player1Life} onUpdate={updatePlayerLife} />
+                  <MiniLife num={2} label="P2" life={player2Life} onUpdate={updatePlayerLife} inverted />
                 </>
               )}
             </div>
@@ -435,7 +428,7 @@ function App() {
               <button onClick={() => applyDamage(Math.ceil(attackDamage / 2))}>Half Block</button>
               <button onClick={() => applyDamage(0)}>Full Block</button>
             </div>
-          </div>
+          </Modal>
         </div>
       )}
 
@@ -446,24 +439,26 @@ function App() {
           onClick={() => setShowResetConfirm(false)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={() => { touchStart.current = null; }}
         >
-          <div className="attack-panel game-over-panel" onClick={e => e.stopPropagation()}>
+          <Modal label="Reset game?" onClose={() => setShowResetConfirm(false)} className="attack-panel game-over-panel">
             <h2>Reset Game?</h2>
             <div className="block-buttons">
               <button style={{ backgroundColor: "#34495e" }} onClick={() => setShowResetConfirm(false)}>Cancel</button>
               <button style={{ backgroundColor: "#ED1C24" }} onClick={resetGame}>Reset</button>
             </div>
-          </div>
+          </Modal>
         </div>
       )}
 
       {/* --- GAME OVER MODAL --- */}
       {gameOver && (
         <div className="modal-backdrop">
-          <div className="attack-panel game-over-panel">
+          <Modal label={`Player ${gameOver} wins`} className="attack-panel game-over-panel">
             <h2>PLAYER {gameOver} WINS!</h2>
+            <button onClick={handleUndo} disabled={!history.length}>Undo Last Change</button>
             <button className="reset-button" onClick={resetGame}>New Game</button>
-          </div>
+          </Modal>
         </div>
       )}
     </div>

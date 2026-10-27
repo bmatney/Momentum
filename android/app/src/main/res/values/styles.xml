@@ -18,6 +18,5 @@
 
    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
         <item name="android:background">@color/container_background</item>
-        <item name="android:windowSplashScreenBackground">#0b1c2d</item>
     </style>
 </resources>

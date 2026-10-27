@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "com.bamsax.Momentum"
-    compileSdk = libs.versions.compileSdk.get().toInteger()
+    compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.bamsax.Momentum"
         minSdkVersion rootProject.ext.minSdkVersion

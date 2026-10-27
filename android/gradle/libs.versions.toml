@@ -4,11 +4,10 @@ coordinatorlayout = "1.3.0"
 core-splashscreen = "1.2.0"
 espresso-core = "3.7.0"
 google-services = "4.4.4"
-gradle = "9.1.0"
+gradle = "9.1.1"
 gradle-toolchains-foojay-resolver-convention = "1.0.0"
 junit = "1.3.0"
 junit-version = "4.13.2"
-compileSdk = "36"
 
 [libraries]
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }

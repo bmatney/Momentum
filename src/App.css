@@ -5,12 +5,12 @@
   /* Core Colors */
   --bg-dark:            #07090f;
   /* Lightened panel background to separate it from the deep space */
-  --panel-bg:           rgba(26, 36, 54, 0.95); 
+  --panel-bg:           rgba(26, 36, 54, 0.95);
   --uvs-orange:         #ff5500;
   --uvs-blue:           #00d2ff;
   --text-main:          #ffffff;
   /* Brightened dim text so it's easier to read */
-  --text-dim:           #a1adb8; 
+  --text-dim:           #a1adb8;
 
   /* Attack Zones */
   --zone-high:          #ff2a2a;
@@ -19,11 +19,11 @@
 
   /* Tech UI Borders & Glows */
   /* Brighter, more visible borders */
-  --border-tech:        2px solid #3d4f66; 
+  --border-tech:        2px solid #3d4f66;
   --border-active:      2px solid var(--uvs-orange);
   /* Intensified the glows */
-  --glow-orange:        0 0 15px rgba(255, 85, 0, 0.6); 
-  --glow-blue:          0 0 15px rgba(0, 210, 255, 0.5); 
+  --glow-orange:        0 0 15px rgba(255, 85, 0, 0.6);
+  --glow-blue:          0 0 15px rgba(0, 210, 255, 0.5);
   --text-shadow-neon:   0 0 8px rgba(255, 255, 255, 0.4);
 }
 
@@ -38,7 +38,7 @@ body {
   margin: 0;
   color: var(--text-main);
   background-color: var(--bg-dark);
-  
+
   /* Deep space background with a subtle tech grid */
   background-image:
     linear-gradient(rgba(0, 210, 255, 0.04) 1px, transparent 1px),
@@ -71,9 +71,9 @@ button {
   letter-spacing: 1px;
   color: var(--text-main);
   /* Lightened base button color */
-  background: #223047; 
+  background: #223047;
   border: var(--border-tech);
-  border-radius: 4px; 
+  border-radius: 4px;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   justify-content: center;
@@ -101,9 +101,9 @@ button:active {
 .mini-controls button,
 .stat-controls button {
   /* Brighter slate-blue gradient */
-  background: linear-gradient(135deg, #2e405e, #1a2538); 
+  background: linear-gradient(135deg, #2e405e, #1a2538);
   color: var(--uvs-orange);
-  transform: skewX(-10deg); 
+  transform: skewX(-10deg);
   box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
 }
 
@@ -197,7 +197,7 @@ button:active {
   width: 60px;
   height: 50px;
   font-size: 32px;
-  border-bottom: 4px solid #0a101a; 
+  border-bottom: 4px solid #0a101a;
 }
 
 /* =========================================
@@ -247,6 +247,8 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: 4px solid var(--uvs-orange);
   width: min(92vw, 450px);
+  max-height: 92dvh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -353,9 +355,9 @@ button:active {
   font-style: italic;
   font-size: 1.1rem;
   /* Brighter base for unselected zones */
-  background: #1a2538; 
+  background: #1a2538;
   border: 2px solid #3d4f66;
-  opacity: 0.7; 
+  opacity: 0.7;
 }
 
 .zone-buttons button[data-zone="high"] { color: var(--zone-high); }
@@ -420,7 +422,7 @@ button:active {
   justify-content: space-around;
   padding: 24px 10px;
   /* Lightened to match new UI elevation */
-  background: #1a2538; 
+  background: #1a2538;
   border-radius: 4px;
   border: var(--border-tech);
   box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
@@ -482,4 +484,23 @@ button:active {
   margin-bottom: 30px;
   letter-spacing: 2px;
   text-shadow: 2px 2px 0 #000, var(--glow-blue);
+}
+.player-open {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+button:focus-visible {
+  outline: 3px solid var(--uvs-blue);
+  outline-offset: 4px;
+}
+.save-warning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: #671b1b;
+  padding: 10px;
+  font-family: system-ui, sans-serif;
 }
