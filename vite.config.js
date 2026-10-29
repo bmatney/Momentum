@@ -4,14 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    minify: 'esbuild',
+    target: ['safari15', 'chrome107'],
     sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ['react', 'react-dom']
-        }
-      }
-    }
-  }
+  },
 });

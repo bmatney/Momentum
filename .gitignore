@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local tooling caches and signing material
+work/
+*.jks
+*.keystore
+keystore.properties
+*.p12
+*.mobileprovision
