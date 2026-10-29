@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback, useReducer, useRef, useEffectEvent, memo } from "react";
 
-import { gameReducer, loadGame, saveGame, initialGame, resolveDamage, healthChanges } from './game';
+import { gameReducer, loadGame, saveGame, initialGame, matchScore, resolveDamage, healthChanges } from './game';
 import Modal from './Modal';
+import RoundTimer from './RoundTimer';
+import DiceResults from './DiceResults';
+import MatchPanel from './MatchPanel';
+import useTimerAlerts from './useTimerAlerts';
 import { defaultPreferences, loadPreferences, savePreferences } from './preferences';
 import release from '../release.config.json';
 import fontLicense from '../public/fonts/OFL.txt?raw';
@@ -26,13 +30,14 @@ const ZONES = { HIGH: "high", MID: "mid", LOW: "low" };
 // =========================================
 // 2. MEMOIZED SUB-COMPONENTS
 // =========================================
-const PlayerSection = memo(({ num, name, life, onUpdate, onOpen, rotated, isFirst }) => (
+const PlayerSection = memo(({ num, name, life, onUpdate, onOpen, rotated, isFirst, wins }) => (
   <div className={`player ${rotated ? "player-rotate" : ""}`} onClick={() => onOpen(num)}>
     <button className={`player-name player-open ${isFirst ? "first-name-active" : ""}`} aria-label={`Open attack panel for player ${num}`} onClick={e => { e.stopPropagation(); onOpen(num); }}>
       {name}
     </button>
 
-    <span className="player-caption">P{num} · {isFirst ? "Goes first" : "Tap name for attack"}</span>
+    {isFirst && <span className="player-caption">Goes first</span>}
+    <span className="player-caption">{wins} / 2 game wins</span>
     <div className="life-total">{life}</div>
 
     <div className="controls">
@@ -77,6 +82,7 @@ function App() {
   const [preferences, setPreferences] = useState(() => {
     try { return loadPreferences(window.localStorage); } catch { return defaultPreferences; }
   });
+  useTimerAlerts(game, dispatch, preferences.timerAlerts);
   const [preferencesSaveFailed, setPreferencesSaveFailed] = useState(false);
   const playerName = num => preferences.names[num - 1].trim() || `Player ${num}`;
   const updatePreferences = next => {
@@ -106,6 +112,8 @@ function App() {
 
   const [utilityPanel, setUtilityPanel] = useState(null);
   const changes = healthChanges(game);
+  const score = matchScore(game);
+  const matchWinner = score.findIndex(wins => wins >= 2) + 1;
 
   // --- State: Touch Gestures ---
   const touchStart = useRef(null);
@@ -213,8 +221,8 @@ function App() {
     dispatch({ type: 'base', player: playerNum, delta });
   };
 
-  const resetGame = () => {
-    dispatch({ type: 'reset' });
+  const resetGame = (type = 'restart-game') => {
+    dispatch({ type });
     setTargetPlayer(null);
     setShowResetConfirm(false);
     setAttackSpeed(DEFAULT_STAT);
@@ -258,6 +266,7 @@ function App() {
 
   // --- Logic: Gesture Handling ---
   const handleTouchStart = (e) => {
+    if (e.target.closest('[role=dialog]')) { touchStart.current = null; return; }
     const touch = e.targetTouches[0];
     touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
   };
@@ -287,13 +296,14 @@ function App() {
   // =========================================
   return (
     <div className="container main-screen">
-      <img src={logo} alt="Momentum Logo" className="background-watermark" />
+      <img src={logo} alt="" aria-hidden="true" className="background-watermark" />
 
       {(saveFailed || preferencesSaveFailed) && <p role="alert" className="save-warning">Changes could not be saved. Keep the app open to preserve this session.</p>}
       {/* --- MAIN GAME AREA --- */}
-      <div className="game-area" inert={!firstPlayer || !!gameOver || targetPlayer !== null || showResetConfirm || utilityPanel !== null}>
+      <div className="game-area" inert={!firstPlayer || !!gameOver || !!matchWinner || targetPlayer !== null || showResetConfirm || utilityPanel !== null}>
         <PlayerSection
           num={2}
+          wins={score[1]}
           name={playerName(2)}
           life={player2Life}
           onUpdate={updatePlayerLife}
@@ -303,6 +313,7 @@ function App() {
         />
 
         <div className="center-divider">
+          <RoundTimer game={game} dispatch={dispatch} />
           <div className="toolbar">
             <button
               className="divider-reset-btn"
@@ -325,6 +336,7 @@ function App() {
                 <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
               </svg>
             </button>
+            <button className="toolbar-text" onClick={() => setUtilityPanel('match')}>Match</button>
             <button className="toolbar-text" onClick={() => setUtilityPanel('history')}>History</button>
             <button className="toolbar-text" onClick={() => setUtilityPanel('help')}>Help</button>
           </div>
@@ -333,6 +345,7 @@ function App() {
 
         <PlayerSection
           num={1}
+          wins={score[0]}
           name={playerName(1)}
           life={player1Life}
           onUpdate={updatePlayerLife}
@@ -342,37 +355,15 @@ function App() {
       </div>
 
       {/* --- INITIAL SETUP & DICE ROLL MODAL --- */}
-      {!firstPlayer && !gameOver && !utilityPanel && (
+      {!firstPlayer && !gameOver && !matchWinner && !utilityPanel && (
         <div className="modal-backdrop">
           <Modal label="Game setup" className="attack-panel attack-face-up">
-
+            <p className="helper-text">Best of 3 · P1 {score[0]} – {score[1]} P2 · {game.draws + (gameOver === 'draw' ? 1 : 0)} draws</p>
             {diceRolls ? (
-              <>
-                <h2>Roll Results</h2>
-                <div className="dice-results">
-                  <div className="dice-score">
-                    <span>P1 Roll</span>
-                    <strong>{diceRolls.p1}</strong>
-                  </div>
-                  <div className="dice-score">
-                    <span>P2 Roll</span>
-                    <strong>{diceRolls.p2}</strong>
-                  </div>
-                </div>
-
-                <h3 className="roll-winner" style={{ textAlign: 'center' }}>
-                  {playerName(diceRolls.winner)} chooses
-                </h3>
-
-                <p className="helper-text">The roll winner chooses to play first or second.</p>
-                <div className="block-buttons">
-                  <button onClick={() => dispatch({ type: 'start', player: diceRolls.winner })}>Go first</button>
-                  <button onClick={() => dispatch({ type: 'start', player: 3 - diceRolls.winner })}>Go second</button>
-                </div>
-              </>
+              <DiceResults rolls={diceRolls} playerName={playerName} onStart={player => dispatch({ type: 'start', player, now: Date.now() })} />
             ) : (
               <>
-                <div className="setup-heading"><span className="eyebrow">MOMENTUM / NEW GAME</span><h1>Ready to battle?</h1></div>
+                <div className="setup-heading"><h1>Ready to battle?</h1></div>
                 <div className="name-fields">
                   {[1, 2].map(num => <label key={num}>Player {num}
                     <input aria-label={`Player ${num} name`} maxLength={24} placeholder={`Player ${num}`} value={preferences.names[num - 1]}
@@ -401,12 +392,13 @@ function App() {
 
                 <div className="setup-title">Who Goes First?</div>
                 <div className="block-buttons">
-                  <button onClick={() => dispatch({ type: 'start', player: 1 })}>{playerName(1)}</button>
-                  <button onClick={() => dispatch({ type: 'start', player: 2 })}>{playerName(2)}</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 1, now: Date.now() })}>{playerName(1)}</button>
+                  <button onClick={() => dispatch({ type: 'start', player: 2, now: Date.now() })}>{playerName(2)}</button>
                 </div>
                 <button className="roll-button" onClick={rollDice}>🎲 ROLL D20s</button>
               </>
             )}
+            <button onClick={() => setUtilityPanel('match')}>Match record</button>
             <button className="text-button" onClick={() => setUtilityPanel('help')}>Help, settings & privacy</button>
           </Modal>
         </div>
@@ -475,10 +467,10 @@ function App() {
       )}
 
       {utilityPanel && <div className="modal-backdrop" onClick={() => setUtilityPanel(null)}>
-        <Modal label={utilityPanel === 'history' ? 'Health history' : 'Help and settings'} onClose={() => setUtilityPanel(null)} className="attack-panel utility-panel">
-          <div className="panel-heading"><h2>{utilityPanel === 'history' ? 'Health history' : 'Momentum'}</h2>
+        <Modal label={utilityPanel === 'match' ? 'Match record' : utilityPanel === 'history' ? 'Health history' : 'Help and settings'} onClose={() => setUtilityPanel(null)} className="attack-panel utility-panel">
+          <div className="panel-heading"><h2>{utilityPanel === 'match' ? 'Match record' : utilityPanel === 'history' ? 'Health history' : 'Momentum'}</h2>
             <button onClick={() => setUtilityPanel(null)}>Close</button></div>
-          {utilityPanel === 'history' ? <>
+          {utilityPanel === 'match' ? <MatchPanel game={game} dispatch={dispatch} playerName={playerName} onClose={() => setUtilityPanel(null)} /> : utilityPanel === 'history' ? <>
             <p className="helper-text">Newest first. Undo removes the latest change.</p>
             {changes.length ? <ol className="health-history">{changes.map(change => <li key={change.id}>
               <span><b>{playerName(change.player)}</b><small>P{change.player} · {change.from} → {change.to}</small></span>
@@ -488,21 +480,29 @@ function App() {
           </> : <>
             <p className="helper-text">An unofficial companion for UniVersus. Not affiliated with or endorsed by UVS Games.</p>
             <section><h3>Make it yours</h3>
+              <label className="toggle-row"><span>Timer vibration alerts<small>At five minutes and time expired while the app is open, or when you return. No lock-screen alarm.</small></span>
+                <input type="checkbox" checked={preferences.timerAlerts} onChange={e => updatePreferences({ ...preferences, timerAlerts: e.target.checked })} /></label>
               <label className="toggle-row"><span>Vibration<small>Feedback when you change health or roll.</small></span>
                 <input type="checkbox" checked={preferences.haptics} onChange={e => updatePreferences({ ...preferences, haptics: e.target.checked })} /></label>
-              <label className="toggle-row"><span>Keep screen awake<small>Keep the tracker visible during play.</small></span>
+              <label className="toggle-row"><span>Keep screen awake<small>Uses more battery. Turn off to allow normal screen sleep; the round timer keeps time.</small></span>
                 <input type="checkbox" checked={preferences.keepAwake} onChange={e => updatePreferences({ ...preferences, keepAwake: e.target.checked })} /></label>
             </section>
+            {import.meta.env.BASE_URL === '/Momentum/play/' && <section><h3>Install on your phone</h3>
+              <p>On iPhone, open this link in Safari, tap Share, then Add to Home Screen. On Android, use your browser’s Install app or Add to Home screen option.</p>
+              <p>Open once online and allow the app to finish loading before using it offline. Saved matches stay in this browser or installed web app; they do not sync with the native app. Clearing website data removes them.</p>
+              <p>Updates wait until all Momentum tabs and app windows are closed. Reopen online between matches to get updates. Vibration, screen wake lock, and portrait lock depend on your browser; iPhone web vibration is unavailable. The timer is not a lock-screen alarm.</p>
+            </section>}
             <section><h3>At the table</h3>
               <p>Use + and − to adjust health. Tap a player’s name to calculate damage to that player. Set speed, damage, zone and Throw, then choose a block result. Card effects may require a manual health adjustment.</p>
-              <p>Undo corrects the last health change, even after a winning hit. History shows the current game’s changes. Reset starts a new game and keeps your starting health and names.</p>
+              <p>Undo corrects the last health change, even after a winning hit. History shows the current game’s changes. Restart game keeps the match record and timer. New match clears the record and resets the timer to 50 minutes. Starting health and names are kept.</p>
+              <p>First to two game wins takes the match; draws do not add a win. Match lets you record a concession or draw and correct earlier results. The round timer starts when you choose who goes first; it continues between games and while the app is closed. At zero, follow the organizer’s end-of-round instructions. The timer does not stop play or decide a winner.</p>
               <p>The highlighted player goes first; it is not a turn tracker. Roll winners choose first or second.</p>
               <p>For tournament play, disable device messaging as required by the event rules and follow the organizer’s instructions.</p>
               <a href="https://uvsgames.com/universus/organized-play/rules-and-documents/" target="_blank" rel="noreferrer">Official UniVersus rules ↗</a>
             </section>
             <section><h3>Privacy</h3>
               <p>Names, game state, undo history and settings stay on this device. No account, advertising or analytics. Device backups may include app data.</p>
-              <p>Reset clears the match history; names and settings stay saved. Device app-data controls can remove saved data. External links and email use their providers’ privacy policies.</p>
+              <p>New match clears the match record and health history; names and settings stay saved. Device app-data controls can remove saved data. External links and email use their providers’ privacy policies.</p>
               {release.privacyPolicyUrl && <a href={release.privacyPolicyUrl} target="_blank" rel="noreferrer">Full privacy policy ↗</a>}
             </section>
             <section><h3>Support & credits</h3>
@@ -526,22 +526,27 @@ function App() {
           onTouchCancel={() => { touchStart.current = null; }}
         >
           <Modal label="Reset game?" onClose={() => setShowResetConfirm(false)} className="attack-panel game-over-panel">
-            <h2>Reset Game?</h2>
+            <h2>Reset game or match?</h2>
+            <p>Restart this game without changing the record or timer, or clear both for a new 50-minute match.</p>
             <div className="block-buttons">
-              <button style={{ backgroundColor: "#34495e" }} onClick={() => setShowResetConfirm(false)}>Cancel</button>
-              <button style={{ backgroundColor: "#ED1C24" }} onClick={resetGame}>Reset</button>
+              <button className="cancel-action" onClick={() => setShowResetConfirm(false)}>Cancel</button>
+              <button onClick={() => resetGame()}>Restart game</button>
+              <button className="reset-action" onClick={() => resetGame('reset')}>New match</button>
             </div>
           </Modal>
         </div>
       )}
 
       {/* --- GAME OVER MODAL --- */}
-      {gameOver && (
+      {!!(gameOver || matchWinner) && !utilityPanel && (
         <div className="modal-backdrop">
-          <Modal label={`Player ${gameOver} wins`} className="attack-panel game-over-panel">
-            <h2>PLAYER {gameOver} WINS!</h2>
-            <button onClick={handleUndo} disabled={!history.length}>Undo Last Change</button>
-            <button className="reset-button" onClick={resetGame}>New Game</button>
+          <Modal label="Game result" className="attack-panel game-over-panel">
+            <h2>{matchWinner ? `${playerName(matchWinner)} wins the match!` : gameOver === 'draw' ? 'Game drawn' : `${playerName(gameOver)} wins the game!`}</h2>
+            <p>Best of 3 · P1 {score[0]} – {score[1]} P2 · {game.draws + (gameOver === 'draw' ? 1 : 0)} draws</p>
+            <RoundTimer game={game} dispatch={dispatch} />
+            <button onClick={handleUndo} disabled={!game.manualResult && !history.length}>Undo Last Change</button>
+            <button onClick={() => setUtilityPanel('match')}>Correct match record</button>
+            <button className="reset-button" onClick={() => resetGame(matchWinner ? 'reset' : 'next-game')}>{matchWinner ? 'New match' : 'Next game'}</button>
           </Modal>
         </div>
       )}

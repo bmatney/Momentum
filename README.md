@@ -43,3 +43,49 @@ Public privacy/support URLs and confirmed store versions are still required by `
 
 See [release account references](docs/release-accounts.md) before publishing.
 Public support and other Momentum communications use momentumuvs@gmail.com.
+
+## Release 1.1.0 preparation
+
+The next candidate is version 1.1.0 / build 2 on both platforms. Store availability
+of these numbers must still be checked before setting `storeVersionConfirmed`.
+Android uses Gradle 9.6.0 and AGP 9.4.1; targets remain Android API 36 and iOS 15+.
+Vite 8 explicitly targets Safari 15 and Chrome 107 rather than raising the web
+syntax target implicitly. This does not replace testing on the oldest devices.
+
+The unused `@capacitor/assets` generator was removed to eliminate its vulnerable
+transitive dependencies. Existing native icons and splash assets remain in the
+repository. The `xcode` parser's `uuid` dependency is overridden to 11.1.1 or newer
+within major 11; parser, UUID generation and project serialization were checked.
+Review this override when Capacitor updates its parser dependency.
+
+Public support and privacy pages are maintained in `docs/site/` and published
+from the `gh-pages` branch at https://bmatney.github.io/Momentum/ and
+https://bmatney.github.io/Momentum/privacy.html. Both live pages were verified,
+and their URLs are configured in `release.config.json`.
+Do not mark the release check complete until the store version numbers are verified.
+
+## Web app
+
+The installable web app is hosted at https://bmatney.github.io/Momentum/play/.
+Use `npm run build:web` to build into `work/web-dist`; the normal `npm run build`
+continues to produce the native app assets in `dist` without a service worker.
+Run `python3 scripts/publish-web.py` to publish the web output to the `play/`
+subtree of `gh-pages`. This preserves the support and privacy pages, replaces
+old web assets, and refuses a non-fast-forward update.
+
+The generated service worker precaches the complete build, including lazy plugin
+chunks, fonts, and icons. It only handles requests inside `/Momentum/play/`.
+Updates wait until existing clients close; there is no forced reload or
+skip-waiting action during a match. Reopen online between matches for updates.
+Saved games stay in local browser storage and do not sync with native installs.
+Browser storage eviction or clearing site data can remove offline files and saves.
+
+On iPhone, open in Safari and choose Share → Add to Home Screen. On Android,
+choose Install app / Add to Home screen from the browser menu. Allow the initial
+online load to complete before going offline. Browser support determines wake
+lock and orientation locking; vibration is unavailable in iPhone web apps.
+
+Validation: lint and 24 game tests passed; both native and web builds passed.
+Chrome loaded the web build at its deployment path; after stopping the local
+server, reload restored the match and elapsed timer, and health/undo still worked.
+Physical iPhone Home Screen installation still requires a device check.

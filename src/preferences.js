@@ -1,5 +1,5 @@
 export const PREFERENCES_KEY = 'momentum.preferences.v1';
-export const defaultPreferences = { names: ['', ''], haptics: true, keepAwake: true };
+export const defaultPreferences = { names: ['', ''], haptics: true, timerAlerts: false, keepAwake: false };
 
 export function loadPreferences(storage) {
   try {
@@ -7,7 +7,8 @@ export function loadPreferences(storage) {
     return {
       names: [0, 1].map(i => typeof value?.names?.[i] === 'string' ? value.names[i].slice(0, 24) : ''),
       haptics: typeof value?.haptics === 'boolean' ? value.haptics : true,
-      keepAwake: typeof value?.keepAwake === 'boolean' ? value.keepAwake : true,
+      timerAlerts: typeof value?.timerAlerts === 'boolean' ? value.timerAlerts : false,
+      keepAwake: typeof value?.keepAwake === 'boolean' ? value.keepAwake : false,
     };
   } catch { return defaultPreferences; }
 }

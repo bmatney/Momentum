@@ -4,9 +4,14 @@ export default function Modal({ label, onClose, className, children, ...props })
   const panel = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
+    const previousOverflow = document.body.style.overflowY;
+    document.body.style.overflowY = 'hidden';
     const dialog = panel.current;
     (dialog.querySelector('button:not(:disabled)') || dialog).focus();
-    return () => { if (previous?.isConnected) previous.focus(); };
+    return () => {
+      document.body.style.overflowY = previousOverflow;
+      if (previous?.isConnected) previous.focus();
+    };
   }, []);
 
   const handleKeyDown = (event) => {

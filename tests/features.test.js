@@ -40,13 +40,13 @@ describe('combat and visible history', () => {
 describe('local preferences', () => {
   it('preserves names and disabled settings across relaunch', () => {
     const saved = storage();
-    const preferences = { names: ['Brian', 'Rival'], haptics: false, keepAwake: false };
+    const preferences = { names: ['Brian', 'Rival'], haptics: false, timerAlerts: true, keepAwake: false };
     assert.equal(savePreferences(saved, preferences), true);
     assert.deepEqual(loadPreferences(saved), preferences);
   });
   it('validates saved values and survives unavailable storage', () => {
     const saved = storage(); saved.setItem('', JSON.stringify({ names: [42, 'x'.repeat(40)], haptics: 'false' }));
-    assert.deepEqual(loadPreferences(saved), { names: ['', 'x'.repeat(24)], haptics: true, keepAwake: true });
+    assert.deepEqual(loadPreferences(saved), { names: ['', 'x'.repeat(24)], haptics: true, timerAlerts: false, keepAwake: false });
     const blocked = { getItem() { throw Error(); }, setItem() { throw Error(); } };
     assert.deepEqual(loadPreferences(blocked), defaultPreferences);
     assert.equal(savePreferences(blocked, defaultPreferences), false);

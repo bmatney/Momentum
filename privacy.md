@@ -1,12 +1,12 @@
 # Momentum Privacy Policy
 
-Last updated: October 27, 2026
+Last updated: October 28, 2026
 
 Momentum is a two-player game life tracker. It does not require an account and does not include advertising or analytics services.
 
 ## Information stored on your device
 
-Momentum saves optional player nicknames, vibration and screen-awake preferences, starting life, current life, the first player, pending dice results, and Undo history locally so you can resume a match. This game state is not sent to a Momentum server. Starting a new game replaces the previous match and clears its Undo history while retaining your chosen starting life totals.
+Momentum saves optional player nicknames, vibration, timer-alert and screen-awake preferences, starting life, current life, the first player, pending dice results, match wins and draws, the round timer, and Undo history locally so you can resume a match. This game state is not sent to a Momentum server. New match clears the match record, timer and health history while retaining names, settings and starting life totals. Restart game clears the current game’s health history while retaining the match record and timer.
 
 Your device's backup and restore features may include app data, depending on your operating system and settings. Those features are controlled by your device/platform provider.
 
@@ -18,7 +18,7 @@ If you contact support, the information you choose to include in your message wi
 
 ## Removing stored data
 
-You can replace the current match using New Game or Reset. You can remove app data through your device's available app-data controls or by deleting the app; backups retained by your device/platform provider are managed separately.
+Use Reset → New match to clear the current match record, timer and health history. Names and preferences stay saved. You can remove app data through your device's available app-data controls or by deleting the app; backups retained by your device/platform provider are managed separately.
 
 ## Changes
 
